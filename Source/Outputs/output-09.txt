@@ -1,0 +1,5 @@
+No solution: UNSAT
+
+# STDERR
+
+# TIME 0.068s
