@@ -1,17 +1,13 @@
 """
-Hashiwokakero Puzzle Solver
-@author: [Tên của bạn]
-@date: December 2024
-
-Module chính để biểu diễn puzzle Hashiwokakero
+hashiwokakero puzzle structure
 """
-from typing import List, Tuple, Dict, Optional, Set
 from dataclasses import dataclass, field
 from enum import Enum
 import copy
 
 
 class Direction(Enum):
+    """4 huong di chuyen"""
     UP = (-1, 0)
     DOWN = (1, 0)
     LEFT = (0, -1)
@@ -20,10 +16,10 @@ class Direction(Enum):
 
 @dataclass
 class Island:
-    """Đảo trong puzzle - lưu vị trí và số cầu cần nối"""
+    """1 dao trong puzzle"""
     row: int
     col: int
-    value: int
+    value: int  # so cau can noi
     
     def __hash__(self):
         return hash((self.row, self.col))
@@ -34,20 +30,22 @@ class Island:
         return self.row == other.row and self.col == other.col
     
     def __repr__(self):
-        return f"Island({self.row}, {self.col}, {self.value})"
+        return "Island(%d, %d, %d)" % (self.row, self.col, self.value)
 
 
-@dataclass
+@dataclass  
 class Bridge:
-    """Cầu nối 2 đảo"""
+    """cau noi 2 dao"""
     island1: Island
     island2: Island
-    count: int  # 1 hoặc 2
+    count: int  # 1 hoac 2 cau
     
     def __post_init__(self):
-        # đảm bảo island1 luôn ở trên/trái hơn island2
+        # dam bao island1 luon o tren/trai hon island2
         if (self.island1.row, self.island1.col) > (self.island2.row, self.island2.col):
-            self.island1, self.island2 = self.island2, self.island1
+            temp = self.island1
+            self.island1 = self.island2
+            self.island2 = temp
     
     def is_horizontal(self):
         return self.island1.row == self.island2.row
@@ -56,14 +54,18 @@ class Bridge:
         return self.island1.col == self.island2.col
     
     def get_cells(self):
-        """Lấy tất cả các ô mà cầu đi qua (không tính 2 đảo ở đầu)"""
+        """lay cac o ma cau di qua (khong tinh 2 dao)"""
         cells = []
         if self.is_horizontal():
-            for c in range(self.island1.col + 1, self.island2.col):
+            c = self.island1.col + 1
+            while c < self.island2.col:
                 cells.append((self.island1.row, c))
+                c += 1
         else:
-            for r in range(self.island1.row + 1, self.island2.row):
+            r = self.island1.row + 1
+            while r < self.island2.row:
                 cells.append((r, self.island1.col))
+                r += 1
         return cells
     
     def __hash__(self):
@@ -78,41 +80,51 @@ class Bridge:
 
 @dataclass
 class PuzzleState:
-    """Trạng thái của puzzle - dùng cho các thuật toán tìm kiếm"""
-    bridges: Dict[Tuple[Island, Island], int] = field(default_factory=dict)
+    """trang thai cua puzzle - luu cac cau da noi"""
+    bridges: dict = field(default_factory=dict)
     
     def copy(self):
         new_state = PuzzleState()
         new_state.bridges = dict(self.bridges)
         return new_state
     
-    def add_bridge(self, island1, island2, count=1):
-        """Thêm cầu giữa 2 đảo"""
-        # sắp xếp để key nhất quán
-        if (island1.row, island1.col) < (island2.row, island2.col):
-            key = (island1, island2)
+    def add_bridge(self, isl1, isl2, count=1):
+        """them cau giua 2 dao"""
+        # sap xep de key nhat quan
+        if (isl1.row, isl1.col) < (isl2.row, isl2.col):
+            key = (isl1, isl2)
         else:
-            key = (island2, island1)
-        self.bridges[key] = self.bridges.get(key, 0) + count
-    
-    def get_bridge_count(self, island1, island2):
-        """Đếm số cầu giữa 2 đảo"""
-        if (island1.row, island1.col) < (island2.row, island2.col):
-            key = (island1, island2)
+            key = (isl2, isl1)
+        
+        if key in self.bridges:
+            self.bridges[key] = self.bridges[key] + count
         else:
-            key = (island2, island1)
-        return self.bridges.get(key, 0)
+            self.bridges[key] = count
     
-    def get_island_bridge_count(self, island, neighbors):
-        """Tổng số cầu nối với 1 đảo"""
+    def get_bridge_count(self, isl1, isl2):
+        """dem so cau giua 2 dao"""
+        if (isl1.row, isl1.col) < (isl2.row, isl2.col):
+            key = (isl1, isl2)
+        else:
+            key = (isl2, isl1)
+        
+        if key in self.bridges:
+            return self.bridges[key]
+        return 0
+    
+    def get_total_bridges(self, island, neighbor_list):
+        """tong so cau noi voi 1 dao"""
         total = 0
-        for neighbor in neighbors:
-            total += self.get_bridge_count(island, neighbor)
+        for nb in neighbor_list:
+            total += self.get_bridge_count(island, nb)
         return total
     
     def __hash__(self):
-        return hash(tuple(sorted((k[0].row, k[0].col, k[1].row, k[1].col, v) 
-                                  for k, v in self.bridges.items())))
+        items = []
+        for k, v in self.bridges.items():
+            items.append((k[0].row, k[0].col, k[1].row, k[1].col, v))
+        items.sort()
+        return hash(tuple(items))
     
     def __eq__(self, other):
         if not isinstance(other, PuzzleState):
@@ -120,189 +132,204 @@ class PuzzleState:
         return self.bridges == other.bridges
     
     def __lt__(self, other):
-        # cần cho heapq
+        # can cho heapq
         return hash(self) < hash(other)
 
 
 class Puzzle:
-    """
-    Class chính biểu diễn puzzle Hashiwokakero
-    Đọc input, tìm các đảo lân cận, kiểm tra solution
-    """
+    """class chinh bieu dien puzzle hashiwokakero"""
     
     def __init__(self, grid):
         self.grid = grid
         self.rows = len(grid)
-        self.cols = len(grid[0]) if grid else 0
+        if len(grid) > 0:
+            self.cols = len(grid[0])
+        else:
+            self.cols = 0
         self.islands = []
-        self.island_map = {}  # (r,c) -> Island
-        self.neighbors = {}   # Island -> [Island láng giềng]
+        self.island_map = {}  # (row, col) -> Island
+        self.neighbors = {}   # Island -> list cac dao ke
         
         self._parse_grid()
         self._find_neighbors()
     
     def _parse_grid(self):
-        # tìm tất cả các đảo trong grid
+        """tim tat ca cac dao trong grid"""
         for r in range(self.rows):
             for c in range(self.cols):
                 val = self.grid[r][c]
                 if val > 0:
-                    island = Island(r, c, val)
-                    self.islands.append(island)
-                    self.island_map[(r, c)] = island
+                    isl = Island(r, c, val)
+                    self.islands.append(isl)
+                    self.island_map[(r, c)] = isl
     
     def _find_neighbors(self):
-        """
-        Tìm các đảo lân cận theo 4 hướng
-        Láng giềng = đảo gần nhất theo hướng ngang/dọc (không bị chặn bởi đảo khác)
-        """
-        for island in self.islands:
-            self.neighbors[island] = []
+        """tim cac dao ke theo 4 huong"""
+        for isl in self.islands:
+            self.neighbors[isl] = []
             
-            # duyệt 4 hướng
+            # duyet 4 huong
             for direction in Direction:
                 dr, dc = direction.value
-                r, c = island.row + dr, island.col + dc
+                r = isl.row + dr
+                c = isl.col + dc
                 
-                # đi theo hướng đó đến khi gặp đảo hoặc ra ngoài
-                while 0 <= r < self.rows and 0 <= c < self.cols:
+                # di theo huong do den khi gap dao hoac ra ngoai
+                while r >= 0 and r < self.rows and c >= 0 and c < self.cols:
                     if (r, c) in self.island_map:
-                        self.neighbors[island].append(self.island_map[(r, c)])
+                        self.neighbors[isl].append(self.island_map[(r, c)])
                         break
-                    r += dr
-                    c += dc
+                    r = r + dr
+                    c = c + dc
     
     def get_possible_bridges(self):
-        """Lấy tất cả các cặp đảo có thể nối cầu"""
-        bridges = set()
-        for island in self.islands:
-            for neighbor in self.neighbors[island]:
-                # đảm bảo không trùng (A,B) và (B,A)
-                if (island.row, island.col) < (neighbor.row, neighbor.col):
-                    bridges.add((island, neighbor))
+        """lay tat ca cac cap dao co the noi cau"""
+        bridge_set = set()
+        for isl in self.islands:
+            for nb in self.neighbors[isl]:
+                if (isl.row, isl.col) < (nb.row, nb.col):
+                    bridge_set.add((isl, nb))
                 else:
-                    bridges.add((neighbor, island))
-        return list(bridges)
+                    bridge_set.add((nb, isl))
+        return list(bridge_set)
     
-    def bridges_cross(self, b1_start, b1_end, b2_start, b2_end):
-        """Kiểm tra 2 cầu có giao nhau không"""
-        # 1 ngang 1 dọc mới có thể giao
-        if b1_start.row == b1_end.row:  # b1 ngang
-            if b2_start.col == b2_end.col:  # b2 dọc
-                h_row = b1_start.row
-                h_c1 = min(b1_start.col, b1_end.col)
-                h_c2 = max(b1_start.col, b1_end.col)
-                v_col = b2_start.col
-                v_r1 = min(b2_start.row, b2_end.row)
-                v_r2 = max(b2_start.row, b2_end.row)
+    def bridges_cross(self, start1, end1, start2, end2):
+        """kiem tra 2 cau co giao nhau khong"""
+        # 1 ngang 1 doc moi co the giao
+        if start1.row == end1.row:  # cau 1 ngang
+            if start2.col == end2.col:  # cau 2 doc
+                h_row = start1.row
+                h_c1 = min(start1.col, end1.col)
+                h_c2 = max(start1.col, end1.col)
+                v_col = start2.col
+                v_r1 = min(start2.row, end2.row)
+                v_r2 = max(start2.row, end2.row)
                 
-                # giao nhau nếu điểm giao nằm trong cả 2 đoạn
-                if h_c1 < v_col < h_c2 and v_r1 < h_row < v_r2:
-                    return True
+                # giao nhau neu diem giao nam trong ca 2 doan
+                if h_c1 < v_col and v_col < h_c2:
+                    if v_r1 < h_row and h_row < v_r2:
+                        return True
                     
-        elif b1_start.col == b1_end.col:  # b1 dọc
-            if b2_start.row == b2_end.row:  # b2 ngang
-                # đổi vai trò và gọi lại
-                return self.bridges_cross(b2_start, b2_end, b1_start, b1_end)
+        elif start1.col == end1.col:  # cau 1 doc
+            if start2.row == end2.row:  # cau 2 ngang
+                return self.bridges_cross(start2, end2, start1, end1)
         
         return False
     
     def bridge_crosses_island(self, start, end):
-        """Kiểm tra cầu có đi qua đảo khác không"""
+        """kiem tra cau co di qua dao khac khong"""
         if start.row == end.row:
-            # cầu ngang
-            c1, c2 = min(start.col, end.col), max(start.col, end.col)
+            # cau ngang
+            c1 = min(start.col, end.col)
+            c2 = max(start.col, end.col)
             for c in range(c1 + 1, c2):
                 if (start.row, c) in self.island_map:
                     return True
         else:
-            # cầu dọc
-            r1, r2 = min(start.row, end.row), max(start.row, end.row)
+            # cau doc
+            r1 = min(start.row, end.row)
+            r2 = max(start.row, end.row)
             for r in range(r1 + 1, r2):
                 if (r, start.col) in self.island_map:
                     return True
         return False
     
     def is_connected(self, state):
-        """BFS kiểm tra tất cả đảo có liên thông không"""
-        if not self.islands:
+        """BFS kiem tra tat ca dao co lien thong khong"""
+        if len(self.islands) == 0:
             return True
         
         visited = set()
         queue = [self.islands[0]]
         visited.add(self.islands[0])
         
-        while queue:
+        while len(queue) > 0:
             current = queue.pop(0)
-            for neighbor in self.neighbors[current]:
-                if neighbor not in visited:
-                    # chỉ đi được nếu có cầu
-                    if state.get_bridge_count(current, neighbor) > 0:
-                        visited.add(neighbor)
-                        queue.append(neighbor)
+            for nb in self.neighbors[current]:
+                if nb not in visited:
+                    # chi di duoc neu co cau
+                    if state.get_bridge_count(current, nb) > 0:
+                        visited.add(nb)
+                        queue.append(nb)
         
         return len(visited) == len(self.islands)
     
-    def is_valid_state(self, state):
-        """Kiểm tra trạng thái có hợp lệ không (chưa hoàn thành)"""
-        # kiểm tra số cầu không vượt quá
-        for island in self.islands:
-            count = state.get_island_bridge_count(island, self.neighbors[island])
-            if count > island.value:
+    def is_valid(self, state):
+        """kiem tra trang thai co hop le khong"""
+        # kiem tra so cau khong vuot qua
+        for isl in self.islands:
+            cnt = state.get_total_bridges(isl, self.neighbors[isl])
+            if cnt > isl.value:
                 return False
         
-        # kiểm tra cầu không giao nhau
+        # kiem tra cau khong giao nhau
         bridge_list = []
-        for (i1, i2), count in state.bridges.items():
-            if count > 0:
-                bridge_list.append((i1, i2))
+        for key, cnt in state.bridges.items():
+            if cnt > 0:
+                bridge_list.append(key)
         
         for i in range(len(bridge_list)):
             for j in range(i + 1, len(bridge_list)):
-                b1, b2 = bridge_list[i], bridge_list[j]
+                b1 = bridge_list[i]
+                b2 = bridge_list[j]
                 if self.bridges_cross(b1[0], b1[1], b2[0], b2[1]):
                     return False
         
         return True
     
     def is_solution(self, state):
-        """Kiểm tra đây có phải solution hoàn chỉnh không"""
-        # mỗi đảo phải có đúng số cầu
-        for island in self.islands:
-            count = state.get_island_bridge_count(island, self.neighbors[island])
-            if count != island.value:
+        """kiem tra day co phai loi giai day du khong"""
+        # moi dao phai co dung so cau
+        for isl in self.islands:
+            cnt = state.get_total_bridges(isl, self.neighbors[isl])
+            if cnt != isl.value:
                 return False
         
-        # phải liên thông
+        # phai lien thong
         if not self.is_connected(state):
             return False
         
-        # không có cầu giao nhau
-        return self.is_valid_state(state)
+        # khong co cau giao nhau
+        return self.is_valid(state)
     
     def state_to_output(self, state):
-        """Chuyển state thành output format"""
-        output = [['0' for _ in range(self.cols)] for _ in range(self.rows)]
+        """chuyen state thanh output grid"""
+        output = []
+        for r in range(self.rows):
+            row = []
+            for c in range(self.cols):
+                row.append('0')
+            output.append(row)
         
-        # đặt các đảo
-        for island in self.islands:
-            output[island.row][island.col] = str(island.value)
+        # dat cac dao
+        for isl in self.islands:
+            output[isl.row][isl.col] = str(isl.value)
         
-        # đặt các cầu
-        for (i1, i2), count in state.bridges.items():
-            if count == 0:
+        # dat cac cau
+        for key, cnt in state.bridges.items():
+            if cnt == 0:
                 continue
             
+            i1, i2 = key
+            
             if i1.row == i2.row:
-                # cầu ngang
-                symbol = '-' if count == 1 else '='
-                c1, c2 = min(i1.col, i2.col), max(i1.col, i2.col)
+                # cau ngang
+                if cnt == 1:
+                    symbol = '-'
+                else:
+                    symbol = '='
+                c1 = min(i1.col, i2.col)
+                c2 = max(i1.col, i2.col)
                 for c in range(c1 + 1, c2):
                     output[i1.row][c] = symbol
             else:
-                # cầu dọc
-                symbol = '|' if count == 1 else '$'
-                r1, r2 = min(i1.row, i2.row), max(i1.row, i2.row)
+                # cau doc
+                if cnt == 1:
+                    symbol = '|'
+                else:
+                    symbol = '$'
+                r1 = min(i1.row, i2.row)
+                r2 = max(i1.row, i2.row)
                 for r in range(r1 + 1, r2):
                     output[r][i1.col] = symbol
         
@@ -310,22 +337,19 @@ class Puzzle:
     
     @staticmethod
     def from_file(filepath):
-        """Đọc puzzle từ file"""
+        """doc puzzle tu file"""
         grid = []
-        with open(filepath, 'r') as f:
-            for line in f:
-                line = line.strip()
-                if line:
-                    row = [int(x) for x in line.split(',')]
-                    grid.append(row)
+        f = open(filepath, 'r')
+        for line in f:
+            line = line.strip()
+            if line != "":
+                parts = line.split(',')
+                row = []
+                for p in parts:
+                    row.append(int(p))
+                grid.append(row)
+        f.close()
         return Puzzle(grid)
     
-    @staticmethod
-    def output_to_string(output):
-        lines = []
-        for row in output:
-            lines.append(str(row))
-        return '\n'.join(lines)
-    
     def __repr__(self):
-        return f"Puzzle({self.rows}x{self.cols}, {len(self.islands)} islands)"
+        return "Puzzle(%dx%d, %d islands)" % (self.rows, self.cols, len(self.islands))

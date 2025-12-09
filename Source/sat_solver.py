@@ -1,6 +1,6 @@
-"""
-Giải Hashiwokakero bằng PySAT
-"""
+# SAT solver dung pysat
+# chuyen bai toan sang CNF roi giai
+
 from pysat.solvers import Glucose3
 from hashiwokakero import Puzzle, PuzzleState
 from cnf_generator import CNFGenerator
@@ -8,64 +8,64 @@ import time
 
 
 class SATSolver:
-    """Dùng thư viện pysat để giải"""
+    # dung pysat de giai
     
     def __init__(self, puzzle):
         self.puzzle = puzzle
-        self.cnf_gen = CNFGenerator(puzzle)
-        self.thoi_gian = 0
+        self.gen = CNFGenerator(puzzle)
+        self.time_spent = 0
         self.stats = {}
     
     def solve(self):
-        """Giải puzzle, trả về PuzzleState nếu tìm được, None nếu không"""
-        start = time.time()
+        t1 = time.time()
         
-        # sinh mệnh đề CNF
-        clauses = self.cnf_gen.sinh_tat_ca_menh_de()
-        self.stats = self.cnf_gen.get_stats()
+        # sinh cnf
+        cac_menh_de = self.gen.generate_all()
+        self.stats = self.gen.get_stats()
         
-        # tạo solver và thêm các mệnh đề
+        # tao solver
         solver = Glucose3()
-        for clause in clauses:
-            if clause:  # bỏ qua mệnh đề rỗng
-                solver.add_clause(clause)
+        for md in cac_menh_de:
+            if len(md) > 0:
+                solver.add_clause(md)
         
-        # giải
+        # giai
         if solver.solve():
             model = solver.get_model()
-            state = self.cnf_gen.giai_ma_ket_qua(model)
+            state = self.gen.decode(model)
             
-            # kiểm tra liên thông
+            # kiem tra lien thong
             if not self.puzzle.is_connected(state):
+                # thu tim loi giai khac
                 state = self._tim_loi_giai_lien_thong(solver)
             
-            self.thoi_gian = time.time() - start
+            self.time_spent = time.time() - t1
             solver.delete()
             return state
         
-        self.thoi_gian = time.time() - start
+        self.time_spent = time.time() - t1
         solver.delete()
         return None
     
     def _tim_loi_giai_lien_thong(self, solver):
-        """
-        Nếu lời giải không liên thông, thử tìm lời giải khác
-        Cách làm: block lời giải hiện tại và giải lại
-        """
-        max_tries = 1000
+        # neu loi giai ko lien thong thi block va thu lai
+        max_lan = 1000
         
-        for _ in range(max_tries):
+        for lan in range(max_lan):
             model = solver.get_model()
-            if model is None:
+            if model == None:
                 return None
             
-            state = self.cnf_gen.giai_ma_ket_qua(model)
+            state = self.gen.decode(model)
             
             if self.puzzle.is_connected(state):
                 return state
             
-            # block lời giải này
-            block = [-lit for lit in model if abs(lit) <= len(self.cnf_gen.var_map)]
+            # block loi giai nay
+            block = []
+            for lit in model:
+                if abs(lit) <= len(self.gen.var_map):
+                    block.append(-lit)
             solver.add_clause(block)
             
             if not solver.solve():
@@ -74,16 +74,15 @@ class SATSolver:
         return None
     
     def get_dimacs(self):
-        return self.cnf_gen.to_dimacs()
+        return self.gen.to_dimacs()
     
     def get_stats(self):
-        s = self.stats.copy()
-        s["thoi_gian"] = self.thoi_gian
-        return s
+        kq = dict(self.stats)
+        kq["time"] = self.time_spent
+        return kq
 
 
-def solve_with_pysat(puzzle):
-    """Hàm tiện ích để giải puzzle"""
-    solver = SATSolver(puzzle)
-    solution = solver.solve()
-    return solution, solver.thoi_gian, solver.get_stats()
+def solve_sat(puzzle):
+    s = SATSolver(puzzle)
+    kq = s.solve()
+    return kq, s.time_spent, s.get_stats()

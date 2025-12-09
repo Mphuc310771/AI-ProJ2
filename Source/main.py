@@ -1,14 +1,5 @@
-"""
-Hashiwokakero Puzzle Solver
-@author: [Điền tên của bạn vào đây]
-@date: 12/2024
-
-Chương trình giải câu đố Hashiwokakero bằng nhiều thuật toán:
-- PySAT (CNF)
-- A*
-- Backtracking
-- Brute-force
-"""
+# main program
+# giai puzzle hashiwokakero
 
 import argparse
 import os
@@ -16,191 +7,182 @@ import sys
 import time
 
 from hashiwokakero import Puzzle, PuzzleState
-from sat_solver import solve_with_pysat
-from astar_solver import solve_with_astar
-from brute_force_solver import solve_with_bruteforce
-from backtracking_solver import solve_with_backtracking
-from utils import (
-    in_puzzle, in_loi_giai, in_output_format,
-    save_output, so_sanh_thuat_toan, tao_bang_so_sanh,
-    lay_cac_file_input, format_output
-)
+from sat_solver import solve_sat
+from astar_solver import solve_astar  
+from brute_force_solver import solve_bruteforce
+from backtracking_solver import solve_backtracking
+from utils import print_puzzle, print_solution, print_output, save_output, compare_algorithms, make_table, get_input_files
 
 
-def lay_solver(algorithm):
-    """Lấy hàm giải theo tên thuật toán"""
-    solvers = {
-        'pysat': solve_with_pysat,
-        'astar': solve_with_astar,
-        'bruteforce': solve_with_bruteforce,
-        'backtracking': solve_with_backtracking
-    }
-    return solvers.get(algorithm.lower())
+# anh xa ten thuat toan vao ham giai
+CAC_SOLVER = {
+    'pysat': solve_sat,
+    'astar': solve_astar,
+    'bruteforce': solve_bruteforce,
+    'backtracking': solve_backtracking
+}
 
 
-def giai_mot_puzzle(input_file, algorithm='pysat', output_file=None, verbose=True):
-    """Giải một puzzle"""
+def get_solver(ten):
+    return CAC_SOLVER.get(ten.lower())
+
+
+def giai_puzzle(file_input, algo='pysat', file_output=None, in_ra=True):
+    # doc va giai 1 puzzle
     
-    if verbose:
-        print(f"Đang đọc: {input_file}")
+    if in_ra:
+        print("Dang doc:", file_input)
     
-    puzzle = Puzzle.from_file(input_file)
+    puzzle = Puzzle.from_file(file_input)
     
-    if verbose:
-        in_puzzle(puzzle)
+    if in_ra:
+        print_puzzle(puzzle)
     
-    solver = lay_solver(algorithm)
-    if solver is None:
-        print(f"Thuật toán không hợp lệ: {algorithm}")
-        print("Các thuật toán hỗ trợ: pysat, astar, bruteforce, backtracking")
+    # lay ham giai
+    solver_fn = get_solver(algo)
+    if solver_fn == None:
+        print("Khong biet thuat toan:", algo)
+        print("Chon: pysat, astar, bruteforce, backtracking")
         return None
     
-    if verbose:
-        print(f"Đang giải bằng {algorithm}...")
+    if in_ra:
+        print("Dang giai bang", algo, "...")
     
-    solution, t, stats = solver(puzzle)
+    # giai
+    loi_giai, thoi_gian, stats = solver_fn(puzzle)
     
-    if solution is None:
-        print("Không tìm được lời giải!")
+    if loi_giai == None:
+        print("Khong tim duoc loi giai!")
         return None
     
-    if verbose:
-        print(f"Đã tìm được lời giải trong {t:.4f}s")
+    if in_ra:
+        print("Tim duoc trong %.4f giay" % thoi_gian)
         print()
-        in_loi_giai(puzzle, solution)
+        print_solution(puzzle, loi_giai)
         print()
-        print("Output format:")
+        print("Output:")
     
-    output = puzzle.state_to_output(solution)
-    in_output_format(output)
+    output = puzzle.state_to_output(loi_giai)
+    print_output(output)
     
-    if output_file:
-        save_output(output, output_file)
-        if verbose:
-            print(f"\nĐã lưu: {output_file}")
+    # luu file
+    if file_output != None:
+        save_output(output, file_output)
+        if in_ra:
+            print()
+            print("Da luu:", file_output)
     
-    if verbose:
-        print("\nThống kê:")
-        for k, v in stats.items():
-            print(f"  {k}: {v}")
+    if in_ra:
+        print()
+        print("Thong ke:")
+        for k in stats:
+            print("  %s: %s" % (k, stats[k]))
     
-    return solution
+    return loi_giai
 
 
-def chay_benchmark(input_dir='Inputs', output_dir='Outputs'):
-    """Chạy benchmark trên tất cả file input"""
+def chay_benchmark(folder_in='Inputs', folder_out='Outputs'):
+    # test tat ca file input
     
-    print("=" * 60)
-    print("HASHIWOKAKERO SOLVER BENCHMARK")
-    print("=" * 60)
+    print("=" * 50)
+    print("HASHIWOKAKERO BENCHMARK")
+    print("=" * 50)
     print()
     
-    input_files = lay_cac_file_input(input_dir)
+    cac_file = get_input_files(folder_in)
     
-    if not input_files:
-        print(f"Không tìm thấy file input trong {input_dir}")
+    if len(cac_file) == 0:
+        print("Khong tim thay file input trong", folder_in)
         return
     
-    print(f"Tìm thấy {len(input_files)} file")
+    print("Tim thay %d file" % len(cac_file))
     print()
     
-    # các thuật toán cần test
-    algorithms = {
-        'PySAT': solve_with_pysat,
-        'A*': solve_with_astar,
-        'Backtracking': solve_with_backtracking,
+    # cac thuat toan
+    algos = {
+        'PySAT': solve_sat,
+        'A*': solve_astar,
+        'Backtracking': solve_backtracking,
     }
     
-    all_results = {}
+    tat_ca_ket_qua = {}
     
-    for input_file in input_files:
-        fname = os.path.basename(input_file)
-        print("-" * 60)
-        print(f"Testing: {fname}")
-        print("-" * 60)
+    for fpath in cac_file:
+        fname = os.path.basename(fpath)
+        print("-" * 50)
+        print("Testing:", fname)
+        print("-" * 50)
         
         try:
-            puzzle = Puzzle.from_file(input_file)
-            print(f"Kích thước: {puzzle.rows}x{puzzle.cols}, {len(puzzle.islands)} đảo")
+            puzzle = Puzzle.from_file(fpath)
+            so_dao = len(puzzle.islands)
+            print("Kich thuoc: %dx%d, %d dao" % (puzzle.rows, puzzle.cols, so_dao))
             print()
             
-            test_algs = algorithms.copy()
-            # chỉ dùng brute-force cho puzzle nhỏ
-            if len(puzzle.get_possible_bridges()) <= 12:
-                test_algs['Brute-force'] = solve_with_bruteforce
+            # chi dung bruteforce cho puzzle nho
+            test_algos = algos.copy()
+            so_cau = len(puzzle.get_possible_bridges())
+            if so_cau <= 12:
+                test_algos['Brute-force'] = solve_bruteforce
             
-            results = so_sanh_thuat_toan(puzzle, test_algs)
-            all_results[fname] = results
+            kq = compare_algorithms(puzzle, test_algos)
+            tat_ca_ket_qua[fname] = kq
             
-            # lưu output
-            for alg_name, result in results.items():
-                if result.get('thanh_cong'):
-                    solver = test_algs[alg_name]
-                    sol, _, _ = solver(puzzle)
-                    if sol:
+            # luu output
+            for alg in kq:
+                if kq[alg].get('success'):
+                    fn = test_algos[alg]
+                    sol, _, _ = fn(puzzle)
+                    if sol != None:
                         out = puzzle.state_to_output(sol)
-                        out_path = os.path.join(output_dir, fname.replace('input-', 'output-'))
+                        out_name = fname.replace('input-', 'output-')
+                        out_path = os.path.join(folder_out, out_name)
                         save_output(out, out_path)
                     break
         
-        except Exception as e:
-            print(f"Lỗi: {e}")
-            all_results[fname] = {"error": str(e)}
+        except Exception as loi:
+            print("Loi:", loi)
+            tat_ca_ket_qua[fname] = {"error": str(loi)}
         
         print()
     
-    # in tổng kết
-    print("=" * 60)
-    print("TỔNG KẾT")
-    print("=" * 60)
+    # tong ket
+    print("=" * 50)
+    print("TONG KET")
+    print("=" * 50)
     print()
     
-    valid = {k: v for k, v in all_results.items() if 'error' not in v}
-    if valid:
-        print(tao_bang_so_sanh(valid))
+    ok = {}
+    for k in tat_ca_ket_qua:
+        if 'error' not in tat_ca_ket_qua[k]:
+            ok[k] = tat_ca_ket_qua[k]
+    
+    if len(ok) > 0:
+        print(make_table(ok))
     
     print()
-    print("Benchmark hoàn tất!")
+    print("Xong!")
 
 
 def main():
-    parser = argparse.ArgumentParser(
-        description='Hashiwokakero Puzzle Solver',
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog="""
-Ví dụ:
-  python main.py --input Inputs/input-01.txt
-  python main.py --input Inputs/input-01.txt --algorithm astar
-  python main.py --input Inputs/input-01.txt --output result.txt
-  python main.py --benchmark
-
-Thuật toán hỗ trợ:
-  pysat       - Dùng thư viện PySAT (nhanh nhất)
-  astar       - Thuật toán A*
-  backtracking - Quay lui với cắt tỉa
-  bruteforce   - Vét cạn (chậm)
-        """
-    )
+    # parse tham so dong lenh
+    parser = argparse.ArgumentParser(description='Hashiwokakero Puzzle Solver')
     
-    parser.add_argument('--input', '-i', type=str, 
-                        help='File input')
+    parser.add_argument('--input', '-i', type=str, help='file input')
     parser.add_argument('--algorithm', '-a', type=str, default='pysat',
                         choices=['pysat', 'astar', 'bruteforce', 'backtracking'],
-                        help='Thuật toán (mặc định: pysat)')
-    parser.add_argument('--output', '-o', type=str,
-                        help='File output')
-    parser.add_argument('--benchmark', '-b', action='store_true',
-                        help='Chạy benchmark')
-    parser.add_argument('--quiet', '-q', action='store_true',
-                        help='Chế độ im lặng')
+                        help='thuat toan (mac dinh: pysat)')
+    parser.add_argument('--output', '-o', type=str, help='file output')
+    parser.add_argument('--benchmark', '-b', action='store_true', help='chay benchmark')
+    parser.add_argument('--quiet', '-q', action='store_true', help='im lang')
     
     args = parser.parse_args()
     
     if args.benchmark:
         chay_benchmark()
     elif args.input:
-        giai_mot_puzzle(args.input, args.algorithm, args.output, 
-                        verbose=not args.quiet)
+        in_ra = not args.quiet
+        giai_puzzle(args.input, args.algorithm, args.output, in_ra)
     else:
         parser.print_help()
 

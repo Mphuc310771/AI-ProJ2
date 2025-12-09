@@ -1,71 +1,68 @@
-"""
-Giải Hashiwokakero bằng Brute-force (vét cạn)
-Chậm nhất nhưng đảm bảo tìm được nghiệm nếu có
-"""
+# brute force - vet can tat ca to hop
+# chi nen dung cho puzzle nho
+
 from hashiwokakero import Puzzle, PuzzleState
 from itertools import product
 import time
 
 
 class BruteForceSolver:
-    """
-    Vét cạn tất cả các tổ hợp cầu có thể
-    Số tổ hợp = 3^n với n là số cặp đảo có thể nối
-    """
+    # vet can 3^n trang thai
     
     def __init__(self, puzzle):
         self.puzzle = puzzle
-        self.thoi_gian = 0
-        self.so_config_da_thu = 0
+        self.time_spent = 0
+        self.da_thu = 0
     
     def solve(self):
-        """Thử tất cả các tổ hợp"""
-        start = time.time()
-        self.so_config_da_thu = 0
+        t1 = time.time()
+        self.da_thu = 0
         
-        possible = self.puzzle.get_possible_bridges()
-        n = len(possible)
+        cac_cau = self.puzzle.get_possible_bridges()
+        n = len(cac_cau)
         
-        # cảnh báo nếu quá lớn
+        # canh bao neu puzzle qua lon
         if n > 20:
-            print(f"Cảnh báo: {n} cặp đảo = {3**n} tổ hợp, sẽ rất lâu!")
+            tong = 3 ** n
+            print("CANH BAO: %d cap dao -> %d to hop, rat lau!" % (n, tong))
         
-        # thử từng tổ hợp
-        for config in product(range(3), repeat=n):
-            self.so_config_da_thu += 1
+        # thu het
+        for to_hop in product([0, 1, 2], repeat=n):
+            self.da_thu = self.da_thu + 1
             
-            # tạo state từ config
+            # tao state
             state = PuzzleState()
-            for i, count in enumerate(config):
-                if count > 0:
-                    island1, island2 = possible[i]
-                    state.bridges[(island1, island2)] = count
+            for i in range(n):
+                cnt = to_hop[i]
+                if cnt > 0:
+                    d1, d2 = cac_cau[i]
+                    state.bridges[(d1, d2)] = cnt
             
-            # kiểm tra
+            # check loi giai
             if self.puzzle.is_solution(state):
-                self.thoi_gian = time.time() - start
+                self.time_spent = time.time() - t1
                 return state
             
-            # in tiến độ
-            if self.so_config_da_thu % 100000 == 0:
-                elapsed = time.time() - start
-                print(f"Đã thử {self.so_config_da_thu} tổ hợp ({elapsed:.1f}s)...")
+            # in tien do 
+            if self.da_thu % 100000 == 0:
+                dt = time.time() - t1
+                print("Da thu %d to hop (%.1f giay)..." % (self.da_thu, dt))
         
-        self.thoi_gian = time.time() - start
-        return None
+        self.time_spent = time.time() - t1
+        return None  # khong tim thay
     
     def get_stats(self):
         n = len(self.puzzle.get_possible_bridges())
         return {
-            "thoi_gian": self.thoi_gian,
-            "so_config_da_thu": self.so_config_da_thu,
-            "tong_so_config": 3 ** n,
-            "so_cap_dao": n,
+            "time": self.time_spent,
+            "da_thu": self.da_thu,
+            "tong": 3 ** n,
+            "so_cap": n,
             "algorithm": "Brute-force"
         }
 
 
-def solve_with_bruteforce(puzzle):
-    solver = BruteForceSolver(puzzle)
-    solution = solver.solve()
-    return solution, solver.thoi_gian, solver.get_stats()
+def solve_bruteforce(puzzle):
+    s = BruteForceSolver(puzzle)
+    kq = s.solve()
+    return kq, s.time_spent, s.get_stats()

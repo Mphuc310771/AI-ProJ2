@@ -1,156 +1,186 @@
-"""
-Các hàm tiện ích
-"""
+# cac ham tien ich
+
 from hashiwokakero import Puzzle, PuzzleState
 import os
 import time
 import tracemalloc
 
 
-def format_output(output):
-    lines = []
-    for row in output:
-        lines.append(str(row))
-    return '\n'.join(lines)
+def format_output(grid):
+    # chuyen grid thanh string
+    kq = []
+    for row in grid:
+        kq.append(str(row))
+    return '\n'.join(kq)
 
 
-def save_output(output, filepath):
-    with open(filepath, 'w', encoding='utf-8') as f:
-        f.write(format_output(output))
+def save_output(grid, duong_dan):
+    # luu grid ra file
+    f = open(duong_dan, 'w', encoding='utf-8')
+    f.write(format_output(grid))
+    f.close()
 
 
-def in_puzzle(puzzle):
-    print(f"Puzzle: {puzzle.rows}x{puzzle.cols}, {len(puzzle.islands)} đảo")
+def print_puzzle(puzzle):
+    # in puzzle ra man hinh
+    print("Puzzle: %dx%d, %d dao" % (puzzle.rows, puzzle.cols, len(puzzle.islands)))
     for row in puzzle.grid:
-        print(' '.join(str(x) if x > 0 else '.' for x in row))
+        dong = ""
+        for x in row:
+            if x > 0:
+                dong = dong + str(x) + " "
+            else:
+                dong = dong + ". "
+        print(dong)
     print()
 
 
-def in_loi_giai(puzzle, state):
+def print_solution(puzzle, state):
+    # in loi giai
     output = puzzle.state_to_output(state)
-    print("Lời giải:")
+    print("Loi giai:")
     for row in output:
         print(' '.join(row))
     print()
 
 
-def in_output_format(output):
-    for row in output:
+def print_output(grid):
+    # in output format
+    for row in grid:
         print(row)
 
 
-def do_memory(func, *args, **kwargs):
-    """Đo bộ nhớ sử dụng"""
+def measure_memory(ham, *args, **kwargs):
+    # do bo nho
     tracemalloc.start()
-    result = func(*args, **kwargs)
-    current, peak = tracemalloc.get_traced_memory()
+    kq = ham(*args, **kwargs)
+    cur, peak = tracemalloc.get_traced_memory()
     tracemalloc.stop()
-    return result, peak / 1024 / 1024
+    return kq, peak / 1024 / 1024
 
 
-def so_sanh_thuat_toan(puzzle, algorithms, timeout=60.0):
-    """So sánh các thuật toán"""
-    results = {}
+def compare_algorithms(puzzle, danh_sach_algo, timeout=60.0):
+    # so sanh cac thuat toan
+    ket_qua = {}
     
-    for name, solve_func in algorithms.items():
-        print(f"Đang chạy {name}...")
+    for ten in danh_sach_algo:
+        ham = danh_sach_algo[ten]
+        print("Dang chay %s..." % ten)
         
         try:
             tracemalloc.start()
-            start = time.time()
+            t1 = time.time()
             
-            solution, t, stats = solve_func(puzzle)
+            sol, t, stats = ham(puzzle)
             
-            current, peak = tracemalloc.get_traced_memory()
+            cur, peak = tracemalloc.get_traced_memory()
             tracemalloc.stop()
             
-            results[name] = {
-                "thanh_cong": solution is not None,
-                "thoi_gian": t,
-                "bo_nho_mb": peak / 1024 / 1024,
+            ket_qua[ten] = {
+                "success": sol != None,
+                "time": t,
+                "memory_mb": peak / 1024 / 1024,
                 "stats": stats
             }
             
-            if solution:
-                results[name]["hop_le"] = puzzle.is_solution(solution)
-            
+            if sol != None:
+                ket_qua[ten]["valid"] = puzzle.is_solution(sol)
+        
         except Exception as e:
             tracemalloc.stop()
-            results[name] = {
-                "thanh_cong": False,
-                "loi": str(e)
+            ket_qua[ten] = {
+                "success": False,
+                "error": str(e)
             }
         
-        status = 'OK' if results[name].get('thanh_cong') else 'FAIL'
-        print(f"  {name}: {status}")
-        if results[name].get('thoi_gian'):
-            print(f"  Thời gian: {results[name]['thoi_gian']:.4f}s")
+        # in status
+        if ket_qua[ten].get('success'):
+            print("  %s: OK" % ten)
+        else:
+            print("  %s: FAIL" % ten)
+        
+        if ket_qua[ten].get('time'):
+            print("  Thoi gian: %.4fs" % ket_qua[ten]['time'])
         print()
     
-    return results
+    return ket_qua
 
 
-def tao_bang_so_sanh(all_results):
-    """Tạo bảng so sánh từ kết quả benchmark"""
-    lines = []
-    
-    if not all_results:
+def make_table(all_results):
+    # tao bang markdown de in
+    if len(all_results) == 0:
         return ""
     
-    algorithms = list(list(all_results.values())[0].keys())
-    header = "| Input | " + " | ".join(f"{alg}" for alg in algorithms) + " |"
-    sep = "|" + "|".join(["---"] * (len(algorithms) + 1)) + "|"
+    # lay ten cac algo
+    first = list(all_results.keys())[0]
+    algo_names = list(all_results[first].keys())
     
+    lines = []
+    
+    # header
+    header = "| File |"
+    for a in algo_names:
+        header = header + " " + a + " |"
     lines.append(header)
+    
+    # sep
+    sep = "|"
+    for i in range(len(algo_names) + 1):
+        sep = sep + "---|"
     lines.append(sep)
     
-    for input_file, results in all_results.items():
-        row = f"| {input_file} |"
-        for alg in algorithms:
-            if alg in results and results[alg].get('thoi_gian'):
-                row += f" {results[alg]['thoi_gian']:.4f}s |"
+    # rows
+    for fname in all_results:
+        res = all_results[fname]
+        row = "| " + fname + " |"
+        for a in algo_names:
+            if a in res and res[a].get('time') != None:
+                row = row + " %.4fs |" % res[a]['time']
             else:
-                row += " N/A |"
+                row = row + " N/A |"
         lines.append(row)
     
     return '\n'.join(lines)
 
 
-def kiem_tra_input(filepath):
-    """Kiểm tra file input hợp lệ"""
+def check_input_file(duong_dan):
+    # kiem tra file input co hop le ko
     try:
-        with open(filepath, 'r') as f:
-            lines = f.readlines()
+        f = open(duong_dan, 'r')
+        cac_dong = f.readlines()
+        f.close()
         
-        if not lines:
+        if len(cac_dong) == 0:
             return False
         
-        col_count = None
-        for line in lines:
-            line = line.strip()
-            if not line:
+        so_cot = None
+        for dong in cac_dong:
+            dong = dong.strip()
+            if dong == "":
                 continue
             
-            values = line.split(',')
-            for v in values:
-                num = int(v.strip())
-                if num < 0 or num > 8:
+            parts = dong.split(',')
+            for p in parts:
+                val = int(p.strip())
+                if val < 0 or val > 8:
                     return False
             
-            if col_count is None:
-                col_count = len(values)
-            elif len(values) != col_count:
-                return False
+            if so_cot == None:
+                so_cot = len(parts)
+            else:
+                if len(parts) != so_cot:
+                    return False
         
         return True
     except:
         return False
 
 
-def lay_cac_file_input(input_dir):
-    """Lấy danh sách file input"""
-    files = []
-    for f in os.listdir(input_dir):
-        if f.startswith('input-') and f.endswith('.txt'):
-            files.append(os.path.join(input_dir, f))
-    return sorted(files)
+def get_input_files(folder):
+    # lay danh sach cac file input
+    kq = []
+    for ten in os.listdir(folder):
+        if ten.startswith('input-') and ten.endswith('.txt'):
+            kq.append(os.path.join(folder, ten))
+    kq.sort()
+    return kq

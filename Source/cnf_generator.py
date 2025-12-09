@@ -1,98 +1,97 @@
 """
-Module sinh CNF cho Hashiwokakero
-Chuyển bài toán sang dạng SAT để giải bằng pysat
+sinh cac menh de CNF cho hashiwokakero
+chuyen bai toan sang dang SAT de giai bang pysat
 """
-from typing import List, Tuple, Dict
 from itertools import combinations, product
 from hashiwokakero import Puzzle, Island, PuzzleState
 
 
 class CNFGenerator:
     """
-    Tạo các mệnh đề CNF cho puzzle
+    tao cac menh de CNF cho puzzle
     
-    Cách mã hóa biến:
-    - Mỗi cặp đảo kề nhau có 2 biến: b1 và b2
-    - b1 = true nếu có ít nhất 1 cầu
-    - b2 = true nếu có 2 cầu
+    cach ma hoa bien:
+    - moi cap dao ke nhau co 2 bien: b1 va b2
+    - b1 = true neu co it nhat 1 cau
+    - b2 = true neu co 2 cau
     
-    Các ràng buộc:
-    1. b2 => b1 (có 2 cầu thì phải có 1 cầu)
-    2. Tổng số cầu mỗi đảo = giá trị của đảo
-    3. Các cầu không được giao nhau
+    cac rang buoc:
+    1. b2 => b1 (co 2 cau thi phai co 1 cau)
+    2. tong so cau moi dao = gia tri cua dao
+    3. cac cau khong duoc giao nhau
     """
     
     def __init__(self, puzzle):
         self.puzzle = puzzle
         self.var_counter = 0
-        self.var_map = {}  # (island1, island2, level) -> biến SAT
-        self.reverse_var_map = {}
+        self.var_map = {}     # (island1, island2, level) -> bien SAT
+        self.reverse_map = {}
         self.clauses = []
         
-        self._tao_bien()
+        self._create_variables()
     
-    def _tao_bien(self):
-        """Tạo biến SAT cho mỗi cầu có thể có"""
+    def _create_variables(self):
+        """tao bien SAT cho moi cau co the co"""
         possible = self.puzzle.get_possible_bridges()
         
         for island1, island2 in possible:
-            # biến cho 1 cầu
+            # bien cho 1 cau
             self.var_counter += 1
             key1 = (island1, island2, 1)
             self.var_map[key1] = self.var_counter
-            self.reverse_var_map[self.var_counter] = key1
+            self.reverse_map[self.var_counter] = key1
             
-            # biến cho 2 cầu
+            # bien cho 2 cau
             self.var_counter += 1
             key2 = (island1, island2, 2)
             self.var_map[key2] = self.var_counter
-            self.reverse_var_map[self.var_counter] = key2
+            self.reverse_map[self.var_counter] = key2
     
     def get_var(self, island1, island2, level):
-        """Lấy biến SAT cho cầu giữa 2 đảo"""
-        # sắp xếp để key nhất quán
+        """lay bien SAT cho cau giua 2 dao"""
+        # sap xep de key nhat quan
         if (island1.row, island1.col) < (island2.row, island2.col):
             key = (island1, island2, level)
         else:
             key = (island2, island1, level)
-        return self.var_map.get(key, 0)
+        
+        if key in self.var_map:
+            return self.var_map[key]
+        return 0
     
-    def sinh_tat_ca_menh_de(self):
-        """Sinh tất cả các mệnh đề CNF"""
+    def generate_all(self):
+        """sinh tat ca cac menh de CNF"""
         self.clauses = []
         
-        self._sinh_rang_buoc_b2_suy_ra_b1()
-        self._sinh_rang_buoc_so_cau()
-        self._sinh_rang_buoc_giao_nhau()
+        self._add_implication_clauses()
+        self._add_degree_clauses()
+        self._add_crossing_clauses()
         
-        # bỏ mệnh đề trùng
-        unique = []
+        # bo menh de trung
+        unique_clauses = []
         seen = set()
         for clause in self.clauses:
             t = tuple(sorted(clause))
             if t not in seen:
                 seen.add(t)
-                unique.append(clause)
+                unique_clauses.append(clause)
         
-        self.clauses = unique
+        self.clauses = unique_clauses
         return self.clauses
     
-    def _sinh_rang_buoc_b2_suy_ra_b1(self):
-        """b2 => b1 tương đương với: not b2 OR b1"""
+    def _add_implication_clauses(self):
+        """b2 => b1 tuong duong voi: not b2 OR b1"""
         possible = self.puzzle.get_possible_bridges()
         
         for island1, island2 in possible:
             var1 = self.get_var(island1, island2, 1)
             var2 = self.get_var(island1, island2, 2)
             
-            if var1 and var2:
+            if var1 != 0 and var2 != 0:
                 self.clauses.append([-var2, var1])
     
-    def _sinh_rang_buoc_so_cau(self):
-        """
-        Với mỗi đảo, tổng số cầu phải bằng giá trị của đảo
-        Dùng cách liệt kê tất cả tổ hợp hợp lệ
-        """
+    def _add_degree_clauses(self):
+        """voi moi dao, tong so cau phai bang gia tri cua dao"""
         for island in self.puzzle.islands:
             neighbors = self.puzzle.neighbors[island]
             target = island.value
@@ -100,49 +99,53 @@ class CNFGenerator:
             
             if n == 0:
                 if target > 0:
-                    # không có láng giềng mà cần cầu -> vô nghiệm
+                    # khong co lang gieng ma can cau -> vo nghiem
                     self.clauses.append([])
                 continue
             
-            # lấy biến cho mỗi láng giềng
+            # lay bien cho moi lang gieng
             bridge_vars = []
             for neighbor in neighbors:
                 v1 = self.get_var(island, neighbor, 1)
                 v2 = self.get_var(island, neighbor, 2)
                 bridge_vars.append((v1, v2))
             
-            # tìm các tổ hợp mà tổng = target
-            # mỗi cầu có thể là 0, 1 hoặc 2
+            # tim cac to hop ma tong = target
             valid_combos = []
             for combo in product(range(3), repeat=n):
-                if sum(combo) == target:
+                total = 0
+                for x in combo:
+                    total += x
+                if total == target:
                     valid_combos.append(combo)
             
-            if not valid_combos:
-                self.clauses.append([])  # vô nghiệm
+            if len(valid_combos) == 0:
+                self.clauses.append([])  # vo nghiem
                 continue
             
-            self._ma_hoa_cac_to_hop(bridge_vars, valid_combos)
+            self._encode_valid_combos(bridge_vars, valid_combos)
     
-    def _ma_hoa_cac_to_hop(self, bridge_vars, valid_combos):
-        """
-        Mã hóa: phải thỏa mãn đúng 1 trong các tổ hợp hợp lệ
-        """
+    def _encode_valid_combos(self, bridge_vars, valid_combos):
+        """ma hoa: phai thoa man dung 1 trong cac to hop hop le"""
         n = len(bridge_vars)
         
-        # tạo biến phụ cho mỗi tổ hợp
+        # tao bien phu cho moi to hop
         aux_vars = []
-        for _ in valid_combos:
+        for i in range(len(valid_combos)):
             self.var_counter += 1
             aux_vars.append(self.var_counter)
         
-        # ít nhất 1 tổ hợp phải đúng
-        self.clauses.append(aux_vars[:])
+        # it nhat 1 to hop phai dung
+        self.clauses.append(list(aux_vars))
         
-        # mỗi biến phụ => cấu hình cầu tương ứng
-        for aux_var, combo in zip(aux_vars, valid_combos):
-            for i, count in enumerate(combo):
-                var1, var2 = bridge_vars[i]
+        # moi bien phu => cau hinh cau tuong ung
+        for i in range(len(valid_combos)):
+            aux_var = aux_vars[i]
+            combo = valid_combos[i]
+            
+            for j in range(n):
+                count = combo[j]
+                var1, var2 = bridge_vars[j]
                 
                 if count == 0:
                     self.clauses.append([-aux_var, -var1])
@@ -152,16 +155,21 @@ class CNFGenerator:
                 else:  # count == 2
                     self.clauses.append([-aux_var, var2])
         
-        # loại bỏ các cấu hình không hợp lệ
+        # loai bo cac cau hinh khong hop le
         for config in product(range(3), repeat=n):
-            # xem config này có match với combo nào không
-            matched = any(combo == config for combo in valid_combos)
+            # xem config nay co match voi combo nao khong
+            matched = False
+            for combo in valid_combos:
+                if combo == config:
+                    matched = True
+                    break
             
             if not matched:
-                # tạo mệnh đề block config này
+                # tao menh de block config nay
                 blocking = []
-                for i, count in enumerate(config):
-                    var1, var2 = bridge_vars[i]
+                for j in range(n):
+                    count = config[j]
+                    var1, var2 = bridge_vars[j]
                     if count == 0:
                         blocking.append(var1)
                     elif count == 1:
@@ -170,33 +178,37 @@ class CNFGenerator:
                     else:
                         blocking.append(-var2)
                 
-                if blocking:
+                if len(blocking) > 0:
                     self.clauses.append(blocking)
     
-    def _sinh_rang_buoc_giao_nhau(self):
-        """Hai cầu giao nhau không thể cùng tồn tại"""
+    def _add_crossing_clauses(self):
+        """hai cau giao nhau khong the cung ton tai"""
         possible = self.puzzle.get_possible_bridges()
         
         for i in range(len(possible)):
             for j in range(i + 1, len(possible)):
-                b1, b2 = possible[i], possible[j]
+                b1 = possible[i]
+                b2 = possible[j]
                 
                 if self.puzzle.bridges_cross(b1[0], b1[1], b2[0], b2[1]):
                     v1 = self.get_var(b1[0], b1[1], 1)
                     v2 = self.get_var(b2[0], b2[1], 1)
                     
-                    if v1 and v2:
+                    if v1 != 0 and v2 != 0:
                         self.clauses.append([-v1, -v2])
     
-    def giai_ma_ket_qua(self, model):
-        """Chuyển kết quả SAT thành PuzzleState"""
+    def decode(self, model):
+        """chuyen ket qua SAT thanh PuzzleState"""
         state = PuzzleState()
         
-        true_vars = set(v for v in model if v > 0)
+        true_vars = set()
+        for v in model:
+            if v > 0:
+                true_vars.add(v)
         
-        for var in true_vars:
-            if var in self.reverse_var_map:
-                island1, island2, level = self.reverse_var_map[var]
+        for v in true_vars:
+            if v in self.reverse_map:
+                island1, island2, level = self.reverse_map[v]
                 if level == 2:
                     state.bridges[(island1, island2)] = 2
                 elif level == 1:
@@ -207,16 +219,21 @@ class CNFGenerator:
         return state
     
     def to_dimacs(self):
-        """Xuất ra format DIMACS"""
-        lines = [f"p cnf {self.var_counter} {len(self.clauses)}"]
+        """xuat ra format DIMACS"""
+        lines = []
+        lines.append("p cnf %d %d" % (self.var_counter, len(self.clauses)))
         for clause in self.clauses:
-            lines.append(" ".join(map(str, clause)) + " 0")
+            line = ""
+            for lit in clause:
+                line += str(lit) + " "
+            line += "0"
+            lines.append(line)
         return "\n".join(lines)
     
     def get_stats(self):
         return {
-            "so_bien": self.var_counter,
-            "so_menh_de": len(self.clauses),
-            "so_dao": len(self.puzzle.islands),
-            "so_cau_co_the": len(self.puzzle.get_possible_bridges())
+            "num_vars": self.var_counter,
+            "num_clauses": len(self.clauses),
+            "num_islands": len(self.puzzle.islands),
+            "num_bridges": len(self.puzzle.get_possible_bridges())
         }
