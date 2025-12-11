@@ -3,7 +3,7 @@
 
 from pysat.solvers import Glucose3
 from hashiwokakero import Puzzle, PuzzleState
-from cnf_generator import CNFGenerator
+from cnf_generator import HashiCNF
 import time
 
 
@@ -12,69 +12,55 @@ class SATSolver:
     
     def __init__(self, puzzle):
         self.puzzle = puzzle
-        self.gen = CNFGenerator(puzzle)
         self.time_spent = 0
         self.stats = {}
     
     def solve(self):
         t1 = time.time()
         
-        # sinh cnf
-        cac_menh_de = self.gen.generate_all()
-        self.stats = self.gen.get_stats()
+        # chuyen puzzle thanh grid
+        grid = self.puzzle.grid
         
-        # tao solver
-        solver = Glucose3()
-        for md in cac_menh_de:
-            if len(md) > 0:
-                solver.add_clause(md)
+        # tao HashiCNF va sinh cnf
+        hashi = HashiCNF(grid)
+        cnf = hashi.generate_cnf()
+        
+        self.stats = {
+            'so_dao': len(hashi.islands),
+            'so_cau_tiem_nang': len(hashi.bridges),
+            'so_bien': cnf.nv,
+            'so_menh_de': len(cnf.clauses)
+        }
         
         # giai
-        if solver.solve():
-            model = solver.get_model()
-            state = self.gen.decode(model)
-            
-            # kiem tra lien thong
-            if not self.puzzle.is_connected(state):
-                # thu tim loi giai khac
-                state = self._tim_loi_giai_lien_thong(solver)
-            
-            self.time_spent = time.time() - t1
-            solver.delete()
-            return state
+        solution = hashi.solve()
         
         self.time_spent = time.time() - t1
-        solver.delete()
-        return None
-    
-    def _tim_loi_giai_lien_thong(self, solver):
-        # neu loi giai ko lien thong thi block va thu lai
-        max_lan = 1000
         
-        for lan in range(max_lan):
-            model = solver.get_model()
-            if model == None:
-                return None
-            
-            state = self.gen.decode(model)
-            
-            if self.puzzle.is_connected(state):
-                return state
-            
-            # block loi giai nay
-            block = []
-            for lit in model:
-                if abs(lit) <= len(self.gen.var_map):
-                    block.append(-lit)
-            solver.add_clause(block)
-            
-            if not solver.solve():
-                return None
+        if solution is None:
+            return None
         
-        return None
+        # chuyen ket qua ve PuzzleState
+        state = self._convert_to_state(solution)
+        return state
     
-    def get_dimacs(self):
-        return self.gen.to_dimacs()
+    def _convert_to_state(self, solution_bridges):
+        """Chuyen ket qua tu HashiCNF ve PuzzleState"""
+        state = PuzzleState()
+        
+        for b in solution_bridges:
+            r1, c1 = b['u']
+            r2, c2 = b['v']
+            count = b['count']
+            
+            # tim island tu toa do
+            isl1 = self.puzzle.island_map.get((r1, c1))
+            isl2 = self.puzzle.island_map.get((r2, c2))
+            
+            if isl1 and isl2:
+                state.add_bridge(isl1, isl2, count)
+        
+        return state
     
     def get_stats(self):
         kq = dict(self.stats)
