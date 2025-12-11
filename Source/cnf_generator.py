@@ -134,22 +134,3 @@ class HashiCNF:
             self.cnf.extend(clauses)
 
         return self.cnf
-
-
-# --- Ví dụ sử dụng ---
-if __name__ == "__main__":
-    sample_grid = [
-        [0, 2, 0, 5, 0, 0, 2],
-        [0, 0, 0, 0, 0, 0, 0],
-        [4, 0, 2, 0, 2, 0, 4],
-        [0, 0, 0, 0, 0, 0, 0],
-        [0, 1, 0, 5, 0, 2, 0],
-        [0, 0, 0, 0, 0, 0, 0],
-        [4, 0, 0, 0, 0, 0, 3]
-    ]
-
-    generator = HashiCNF(sample_grid)
-    cnf = generator.generate_cnf()
-
-    print(f"Đã sinh {len(cnf.clauses)} mệnh đề CNF.")
-    print(f"Tổng số biến: {cnf.nv}")
