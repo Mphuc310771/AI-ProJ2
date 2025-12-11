@@ -1,8 +1,6 @@
 from pysat.formula import CNF
 from pysat.card import CardEnc
-from pysat.solvers import Glucose3
-import collections
-import itertools
+
 
 class HashiCNF:
     def __init__(self, grid):
@@ -64,6 +62,7 @@ class HashiCNF:
                         'idx': len(self.bridges)
                     })
                     break
+
     def _allocate_variables(self):
         """
         Mỗi cầu nối tiềm năng i sẽ có 2 biến logic:
@@ -136,158 +135,9 @@ class HashiCNF:
 
         return self.cnf
 
-    # --- PHẦN MỚI: KIỂM TRA LIÊN THÔNG (BFS) ---
-    def _get_connected_component(self, current_bridges, start_node_idx=0):
-        """
-        Dùng BFS để tìm nhóm đảo liên thông bắt đầu từ đảo start_node_idx.
-        Trả về tập hợp các ID đảo đã ghé thăm.
-        """
-        # Xây dựng danh sách kề (Adjacency List) từ các cầu hiện tại
-        adj = collections.defaultdict(list)
-        for b in current_bridges:
-            # Lưu ý: current_bridges đã parse ra dạng (r,c), cần map về ID đảo
-            # Để nhanh, ta tìm đảo dựa vào tọa độ
-            u_id = next(isl['id'] for isl in self.islands if (isl['r'], isl['c']) == b['u'])
-            v_id = next(isl['id'] for isl in self.islands if (isl['r'], isl['c']) == b['v'])
-            adj[u_id].append(v_id)
-            adj[v_id].append(u_id)
-
-        # BFS
-        visited = set()
-        queue = collections.deque([start_node_idx])
-        visited.add(start_node_idx)
-
-        while queue:
-            u = queue.popleft()
-            for v in adj[u]:
-                if v not in visited:
-                    visited.add(v)
-                    queue.append(v)
-
-        return visited
-
-    def solve(self):
-        """
-        Giải lặp (Iterative Solving) để xử lý tính liên thông.
-        """
-        # Khởi tạo Solver với các luật cơ bản
-        with Glucose3(bootstrap_with=self.cnf) as solver:
-            while True:
-                # 1. Tìm lời giải thử
-                if not solver.solve():
-                    return None  # Vô nghiệm
-
-                model = solver.get_model()
-                solution_bridges = self._parse_model(model)
-
-                # 2. Kiểm tra tính liên thông
-                # Lấy tập hợp các đảo đã kết nối được từ đảo số 0
-                visited_islands = self._get_connected_component(solution_bridges, start_node_idx=0)
-
-                # Nếu số lượng đảo ghé thăm == Tổng số đảo => Đã liên thông hoàn toàn -> XONG
-                if len(visited_islands) == len(self.islands):
-                    return solution_bridges
-
-                # 3. Nếu KHÔNG liên thông => Thêm luật chặn (Blocking Clause)
-                # Logic: Nhóm visited_islands đang bị cô lập.
-                # Cần thêm luật: "Phải có ít nhất 1 cây cầu nối từ nhóm này ra bên ngoài".
-
-                # Tìm "Vết cắt" (Cut): Các cầu tiềm năng nối từ nhóm visited ra nhóm chưa visited
-                cut_bridges_vars = []
-                for b in self.bridges:
-                    u_id = b['u']['id']
-                    v_id = b['v']['id']
-
-                    # Nếu cầu nối giữa 1 đảo đã thăm và 1 đảo chưa thăm
-                    if (u_id in visited_islands and v_id not in visited_islands) or \
-                            (u_id not in visited_islands and v_id in visited_islands):
-                        # Lấy biến logic "Có ít nhất 1 cầu" của cạnh này
-                        var_id = self.var_pool[(b['idx'], 1)]
-                        cut_bridges_vars.append(var_id)
-
-                if not cut_bridges_vars:
-                    # Nếu không còn cầu nào nối ra ngoài mà vẫn chưa liên thông -> Vô nghiệm thực sự
-                    return None
-
-                # Thêm mệnh đề OR: (cầu_1 HOẶC cầu_2 HOẶC ... cầu_n phải tồn tại)
-                solver.add_clause(cut_bridges_vars)
-                # print(f"Phát hiện đảo cô lập. Thêm ràng buộc liên thông với {len(cut_bridges_vars)} lựa chọn cầu nối.")
-
-    def _parse_model(self, model):
-        """
-        Chuyển đổi kết quả từ SAT model về dạng dễ đọc
-        """
-        result_bridges = []
-        model_set = set(model)  # Để tra cứu nhanh
-
-        for b in self.bridges:
-            idx = b['idx']
-            v1 = self.var_pool[(idx, 1)]
-            v2 = self.var_pool[(idx, 2)]
-
-            count = 0
-            if v2 in model_set:
-                count = 2
-            elif v1 in model_set:
-                count = 1
-
-            if count > 0:
-                result_bridges.append({
-                    'u': (b['u']['r'], b['u']['c']),
-                    'v': (b['v']['r'], b['v']['c']),
-                    'count': count,
-                    'type': b['type']
-                })
-        return result_bridges
-
-    # --- HÀM MỚI THÊM VÀO ĐỂ FORMAT OUTPUT ---
-    def format_output(self, solution_bridges):
-        """
-        Tạo ma trận string kết quả dựa trên lời giải.
-        Ký hiệu:
-        - Ngang: "-" (1 cầu), "=" (2 cầu)
-        - Dọc: "|" (1 cầu), "$" (2 cầu) (Lưu ý: Đề bài dùng "$" thay vì "||")
-        - Đảo: "Số"
-        - Trống: "0"
-        """
-        # 1. Khởi tạo grid output toàn "0"
-        output_grid = [["0" for _ in range(self.cols)] for _ in range(self.rows)]
-
-        # 2. Điền các đảo vào grid
-        for r in range(self.rows):
-            for c in range(self.cols):
-                if self.grid[r][c] > 0:
-                    output_grid[r][c] = str(self.grid[r][c])
-
-        # 3. Điền các cầu vào grid
-        for bridge in solution_bridges:
-            r1, c1 = bridge['u']
-            r2, c2 = bridge['v']
-            count = bridge['count']
-            b_type = bridge['type']
-
-            # Xác định ký tự cầu
-            symbol = ""
-            if b_type == 'horizontal':
-                symbol = "-" if count == 1 else "="
-                # Điền vào các ô NẰM GIỮA 2 đảo (không đè lên đảo)
-                # range từ (cột nhỏ + 1) đến (cột lớn)
-                start_c, end_c = min(c1, c2), max(c1, c2)
-                for c in range(start_c + 1, end_c):
-                    output_grid[r1][c] = symbol
-
-            else:  # vertical
-                symbol = "|" if count == 1 else "$"  # Dùng $ cho cầu đôi dọc theo đề bài
-                # range từ (hàng nhỏ + 1) đến (hàng lớn)
-                start_r, end_r = min(r1, r2), max(r1, r2)
-                for r in range(start_r + 1, end_r):
-                    output_grid[r][c1] = symbol
-
-        return output_grid
 
 # --- Ví dụ sử dụng ---
 if __name__ == "__main__":
-    # Ví dụ input đơn giản (như source 88-94)
     sample_grid = [
         [0, 2, 0, 5, 0, 0, 2],
         [0, 0, 0, 0, 0, 0, 0],
@@ -298,22 +148,8 @@ if __name__ == "__main__":
         [4, 0, 0, 0, 0, 0, 3]
     ]
 
-    solver = HashiCNF(sample_grid)
-    cnf = solver.generate_cnf()
+    generator = HashiCNF(sample_grid)
+    cnf = generator.generate_cnf()
 
     print(f"Đã sinh {len(cnf.clauses)} mệnh đề CNF.")
     print(f"Tổng số biến: {cnf.nv}")
-
-    solution = solver.solve()
-    if solution:
-        # Gọi hàm format output
-        formatted_grid = solver.format_output(solution)
-
-        # In ra từng dòng giống hệt hình ảnh đề bài
-        for row in formatted_grid:
-            print(row)
-
-            # Nếu muốn print đẹp hơn không có dấu nháy và ngoặc thì dùng lệnh dưới:
-            # print(" ".join(f"{x:^3}" for x in row))
-    else:
-        print("Không tìm thấy lời giải.")

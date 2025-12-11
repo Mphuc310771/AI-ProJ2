@@ -32,35 +32,83 @@ class SATSolver:
             'so_menh_de': len(cnf.clauses)
         }
         
-        # giai
-        solution = hashi.solve()
+        # giai bang Glucose3
+        solver = Glucose3()
+        for clause in cnf.clauses:
+            if len(clause) > 0:
+                solver.add_clause(clause)
+        
+        if solver.solve():
+            model = solver.get_model()
+            state = self._decode_model(model, hashi)
+            
+            # kiem tra lien thong
+            if not self.puzzle.is_connected(state):
+                state = self._tim_lien_thong(solver, hashi)
+            
+            self.time_spent = time.time() - t1
+            solver.delete()
+            return state
         
         self.time_spent = time.time() - t1
+        solver.delete()
+        return None
+    
+    def _decode_model(self, model, hashi):
+        # chuyen SAT model ve PuzzleState
+        state = PuzzleState()
+        model_set = set(model)
         
-        if solution is None:
-            return None
+        for b in hashi.bridges:
+            idx = b['idx']
+            v1 = hashi.var_pool[(idx, 1)]
+            v2 = hashi.var_pool[(idx, 2)]
+            
+            count = 0
+            if v2 in model_set:
+                count = 2
+            elif v1 in model_set:
+                count = 1
+            
+            if count > 0:
+                r1 = b['u']['r']
+                c1 = b['u']['c']
+                r2 = b['v']['r']
+                c2 = b['v']['c']
+                
+                isl1 = self.puzzle.island_map.get((r1, c1))
+                isl2 = self.puzzle.island_map.get((r2, c2))
+                
+                if isl1 and isl2:
+                    state.add_bridge(isl1, isl2, count)
         
-        # chuyen ket qua ve PuzzleState
-        state = self._convert_to_state(solution)
         return state
     
-    def _convert_to_state(self, solution_bridges):
-        """Chuyen ket qua tu HashiCNF ve PuzzleState"""
-        state = PuzzleState()
+    def _tim_lien_thong(self, solver, hashi):
+        # neu ko lien thong thi block va thu lai
+        max_lan = 1000
         
-        for b in solution_bridges:
-            r1, c1 = b['u']
-            r2, c2 = b['v']
-            count = b['count']
+        for lan in range(max_lan):
+            model = solver.get_model()
+            if model is None:
+                return None
             
-            # tim island tu toa do
-            isl1 = self.puzzle.island_map.get((r1, c1))
-            isl2 = self.puzzle.island_map.get((r2, c2))
+            state = self._decode_model(model, hashi)
             
-            if isl1 and isl2:
-                state.add_bridge(isl1, isl2, count)
+            if self.puzzle.is_connected(state):
+                return state
+            
+            # block loi giai nay
+            block = []
+            for lit in model:
+                if abs(lit) <= len(hashi.var_pool):
+                    block.append(-lit)
+            solver.add_clause(block)
+            
+            if not solver.solve():
+                return None
         
-        return state
+        return None
     
     def get_stats(self):
         kq = dict(self.stats)
