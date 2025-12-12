@@ -134,3 +134,16 @@ class HashiCNF:
             self.cnf.extend(clauses)
 
         return self.cnf
+
+    def get_clause_list(self):
+        """
+        Return plain Python representation of the CNF: (clauses, num_vars)
+        clauses: List[List[int]]
+        num_vars: maximum variable index used (including aux vars produced by CardEnc)
+        """
+        clauses = [list(cl) for cl in self.cnf.clauses]
+        num_vars = 0
+        for cl in clauses:
+            for lit in cl:
+                num_vars = max(num_vars, abs(lit))
+        return clauses, num_vars

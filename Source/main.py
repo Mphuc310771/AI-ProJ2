@@ -8,7 +8,7 @@ import time
 
 from hashiwokakero import Puzzle, PuzzleState
 from sat_solver import solve_sat
-from astar_solver import solve_astar  
+from astar_to_solve_cnf import solve_astar  
 from brute_force_solver import solve_bruteforce
 from backtracking_solver import solve_backtracking
 from utils import print_puzzle, print_solution, print_output, save_output, compare_algorithms, make_table, get_input_files
