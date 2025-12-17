@@ -3,235 +3,203 @@ import time
 import tracemalloc
 from collections import Counter
 
-# Giả định bạn đã có các file này trong project
 from cnf_generator import HashiCNF
 from hashiwokakero import PuzzleState
 
-def _clause_satisfied(clause, assignment):
-    """Kiểm tra xem mệnh đề đã được thỏa mãn (True) chưa."""
+
+def kiem_tra_clause(clause, gan):
+    """Kiem tra 1 clause co thoa man voi phep gan hien tai khong"""
     for lit in clause:
         v = abs(lit)
-        if v in assignment:
-            val = assignment[v]
-            # Nếu lit dương và val True -> True
-            # Nếu lit âm và val False -> True
-            if (lit > 0 and val) or (lit < 0 and not val):
+        if v in gan:
+            gia_tri = gan[v]
+            if (lit > 0 and gia_tri) or (lit < 0 and not gia_tri):
                 return True
     return False
 
-def _count_unsatisfied_clauses(clauses, assignment):
-    """Hàm Heuristic: Đếm số mệnh đề chưa được thỏa mãn."""
-    cnt = 0
-    for cl in clauses:
-        if not _clause_satisfied(cl, assignment):
-            cnt += 1
-    return cnt
 
-def unit_propagate(clauses, assignment):
-    """
-    KỸ THUẬT TỐI ƯU: Unit Propagation.
-    Tự động gán giá trị cho các biến nếu mệnh đề chỉ còn 1 lựa chọn duy nhất.
-    Trả về: (assignment_mới, có_mâu_thuẫn_không)
-    """
-    new_assignment = assignment.copy()
-    changed = True
+def dem_chua_thoa(ds_clause, gan):
+    """Dem so clause chua duoc thoa man"""
+    dem = 0
+    for cl in ds_clause:
+        if not kiem_tra_clause(cl, gan):
+            dem += 1
+    return dem
+
+
+def lan_truyen_don_vi(ds_clause, gan):
+    """Unit propagation - suy dien tu cac clause chi co 1 bien"""
+    gan_moi = gan.copy()
+    co_thay_doi = True
     
-    while changed:
-        changed = False
+    while co_thay_doi:
+        co_thay_doi = False
         
-        for clause in clauses:
-            # 1. Kiểm tra mệnh đề đã True chưa
-            if _clause_satisfied(clause, new_assignment):
+        for clause in ds_clause:
+            if kiem_tra_clause(clause, gan_moi):
                 continue
             
-            # 2. Tìm các literal chưa được gán giá trị
-            unassigned = []
+            # tim cac bien chua gan
+            chua_gan = []
             for lit in clause:
-                if abs(lit) not in new_assignment:
-                    unassigned.append(lit)
+                if abs(lit) not in gan_moi:
+                    chua_gan.append(lit)
             
-            # 3. Nếu không còn literal nào chưa gán mà mệnh đề vẫn chưa True
-            # -> Mâu thuẫn (Conflict) -> Nhánh này sai
-            if not unassigned:
+            # clause rong ma chua thoa -> xung dot
+            if not chua_gan:
                 return None, True
             
-            # 4. Nếu chỉ còn ĐÚNG 1 literal chưa gán (Unit Clause)
-            # -> Bắt buộc phải gán giá trị để mệnh đề True
-            if len(unassigned) == 1:
-                lit = unassigned[0]
-                var = abs(lit)
-                val_to_assign = (lit > 0) # True nếu lit dương, False nếu lit âm
+            # unit clause -> gan gia tri de thoa man
+            if len(chua_gan) == 1:
+                lit = chua_gan[0]
+                bien = abs(lit)
+                can_true = (lit > 0)
                 
-                # Nếu biến này đã gán rồi mà khác giá trị bắt buộc -> Mâu thuẫn
-                if var in new_assignment and new_assignment[var] != val_to_assign:
+                if bien in gan_moi and gan_moi[bien] != can_true:
                     return None, True
                 
-                if var not in new_assignment:
-                    new_assignment[var] = val_to_assign
-                    changed = True
+                if bien not in gan_moi:
+                    gan_moi[bien] = can_true
+                    co_thay_doi = True
                     
-    return new_assignment, False
+    return gan_moi, False
 
-def _assignment_to_puzzlestate(hc: HashiCNF, assignment, puzzle):
-    """Chuyển đổi từ bảng chân trị True/False về trạng thái bàn cờ."""
+
+def tao_state_tu_gan(hc, gan, puzzle):
+    """Chuyen phep gan CNF sang PuzzleState"""
     state = PuzzleState()
     
-    # Duyệt qua map cầu nối trong đối tượng CNF
-    # Lưu ý: Cần đảm bảo HashiCNF có thuộc tính 'bridges' lưu thông tin mapping
     for b in hc.bridges:
         idx = b['idx']
-        # Lấy biến logic tương ứng với 1 cầu và 2 cầu
         var1 = hc.var_pool.get((idx, 1))
         var2 = hc.var_pool.get((idx, 2))
         
-        count = 0
-        # Ưu tiên kiểm tra 2 cầu trước
-        if var2 is not None and assignment.get(var2, False):
-            count = 2
-        elif var1 is not None and assignment.get(var1, False):
-            count = 1
+        so_cau = 0
+        if var2 is not None and gan.get(var2, False):
+            so_cau = 2
+        elif var1 is not None and gan.get(var1, False):
+            so_cau = 1
 
-        if count > 0:
-            u = b['u']
-            v = b['v']
-            # Lấy đối tượng Island thực tế từ puzzle map
-            isl_u = puzzle.island_map[(u['r'], u['c'])]
-            isl_v = puzzle.island_map[(v['r'], v['c'])]
-            state.add_bridge(isl_u, isl_v, count)
+        if so_cau > 0:
+            u, v = b['u'], b['v']
+            dao_u = puzzle.island_map[(u['r'], u['c'])]
+            dao_v = puzzle.island_map[(v['r'], v['c'])]
+            state.add_bridge(dao_u, dao_v, so_cau)
 
     return state
 
-def solve_astar(puzzle, time_limit=300, max_nodes=2000000):
-    """
-    Hàm chính giải CNF bằng A* (Custom Implementation).
-    """
-    # 1. Sinh CNF từ bàn cờ
+
+def solve_astar(puzzle, gioi_han_tg=300, gioi_han_node=2000000):
+    """Giai CNF bang A* search"""
     hc = HashiCNF(puzzle.grid)
     hc.generate_cnf()
-    clauses, num_vars = hc.get_clause_list()
+    ds_clause, so_bien = hc.get_clause_list()
 
-    # 2. Bắt đầu đo đạc
     tracemalloc.start()
     t0 = time.perf_counter()
 
-    # 3. Khởi tạo trạng thái đầu
-    # Chạy Unit Propagation ngay từ đầu để điền các biến bắt buộc
-    start_assignment, conflict = unit_propagate(clauses, {})
-    if conflict:
-        return None, time.perf_counter() - t0, {'status': 'unsatisfiable_initial'}
+    # bat dau voi phep gan rong, chay unit propagation
+    gan_dau, xung_dot = lan_truyen_don_vi(ds_clause, {})
+    if xung_dot:
+        return None, time.perf_counter() - t0, {'status': 'unsat'}
 
-    g0 = len(start_assignment)
-    h0 = _count_unsatisfied_clauses(clauses, start_assignment)
+    g0 = len(gan_dau)
+    h0 = dem_chua_thoa(ds_clause, gan_dau)
     
-    # Priority Queue: (f, h, g, assignment_dict)
-    # Lưu ý: assignment được lưu trực tiếp trong tuple
-    open_heap = []
-    heapq.heappush(open_heap, (g0 + h0, h0, g0, start_assignment))
+    # heap: (f, h, g, gan)
+    heap = []
+    heapq.heappush(heap, (g0 + h0, h0, g0, gan_dau))
     
-    # Closed set lưu key là tuple các item đã sort để hash được
-    closed = set()
-    start_key = tuple(sorted(start_assignment.items()))
-    closed.add(start_key)
+    da_xet = set()
+    key_dau = tuple(sorted(gan_dau.items()))
+    da_xet.add(key_dau)
 
-    nodes_expanded = 0
-    max_open_size = 1
+    so_node = 0
+    max_heap = 1
 
-    while open_heap:
-        # Kiểm tra thời gian
-        if (time.perf_counter() - t0) > time_limit:
+    while heap:
+        # kiem tra gioi han thoi gian
+        if (time.perf_counter() - t0) > gioi_han_tg:
             break
 
-        # Lấy node tốt nhất
-        f, h, g, current_assign = heapq.heappop(open_heap)
-        max_open_size = max(max_open_size, len(open_heap))
+        f, h, g, gan_ht = heapq.heappop(heap)
+        max_heap = max(max_heap, len(heap))
         
-        nodes_expanded += 1
-        if nodes_expanded > max_nodes:
+        so_node += 1
+        if so_node > gioi_han_node:
             break
 
-        # --- KIỂM TRA ĐÍCH (GOAL) ---
-        if h == 0:
-            # Double check để chắc chắn
-            if _count_unsatisfied_clauses(clauses, current_assign) == 0:
-                current_mem, peak_mem = tracemalloc.get_traced_memory()
-                tracemalloc.stop()
-                elapsed = time.perf_counter() - t0
-                
-                stats = {
-                    'nodes_expanded': nodes_expanded,
-                    'max_open_size': max_open_size,
-                    'peak_memory_bytes': peak_mem,
-                    'num_vars': num_vars,
-                    'algorithm': 'A* on CNF'
-                }
-                
-                result_state = _assignment_to_puzzlestate(hc, current_assign, puzzle)
-                return result_state, elapsed, stats
+        # kiem tra da thoa man het clause chua
+        if h == 0 and dem_chua_thoa(ds_clause, gan_ht) == 0:
+            cur_mem, peak_mem = tracemalloc.get_traced_memory()
+            tracemalloc.stop()
+            tg_chay = time.perf_counter() - t0
+            
+            thong_ke = {
+                'nodes_expanded': so_node,
+                'max_open_size': max_heap,
+                'peak_memory_bytes': peak_mem,
+                'num_vars': so_bien,
+                'algorithm': 'A*'
+            }
+            
+            state = tao_state_tu_gan(hc, gan_ht, puzzle)
+            return state, tg_chay, thong_ke
 
-        # --- CHIẾN LƯỢC CHỌN BIẾN (HEURISTIC) ---
-        # MOMs: Chọn biến xuất hiện nhiều nhất trong các mệnh đề ngắn nhất chưa thỏa mãn
-        min_len = float('inf')
-        best_vars = Counter()
+        # tim bien tot nhat de thu
+        # chon tu clause ngan nhat chua thoa man
+        do_dai_min = float('inf')
+        ds_bien_tot = Counter()
         
-        has_unsatisfied = False
-        for cl in clauses:
-            if _clause_satisfied(cl, current_assign):
+        co_chua_thoa = False
+        for cl in ds_clause:
+            if kiem_tra_clause(cl, gan_ht):
                 continue
             
-            has_unsatisfied = True
-            # Lấy các literal chưa gán trong mệnh đề này
-            unassigned = [abs(lit) for lit in cl if abs(lit) not in current_assign]
+            co_chua_thoa = True
+            chua_gan = [abs(lit) for lit in cl if abs(lit) not in gan_ht]
             
-            if not unassigned: continue # Should be handled by unit prop, but safe check
-            
-            curr_len = len(unassigned)
-            if curr_len < min_len:
-                min_len = curr_len
-                best_vars = Counter() # Reset nếu tìm thấy mệnh đề ngắn hơn
-            
-            if curr_len == min_len:
-                for v in unassigned:
-                    best_vars[v] += 1
-        
-        if not has_unsatisfied:
-            # Trường hợp hiếm: h > 0 nhưng không tìm thấy mệnh đề unsatisfied (bug logic?)
-            # Thường h=0 sẽ return ở trên rồi.
-            continue
-
-        if not best_vars:
-            continue
-
-        # Lấy biến tốt nhất để phân nhánh
-        next_var = best_vars.most_common(1)[0][0]
-
-        # --- SINH TRẠNG THÁI CON (BRANCHING) ---
-        # Thử gán True và False
-        for val in [True, False]:
-            new_assign = current_assign.copy()
-            new_assign[next_var] = val
-            
-            # Kích hoạt Unit Propagation ngay lập tức
-            prop_assign, conflict = unit_propagate(clauses, new_assign)
-            
-            if conflict:
-                continue # Nhánh này dẫn đến mâu thuẫn -> Cắt tỉa ngay
-            
-            # Kiểm tra Closed Set
-            prop_key = tuple(sorted(prop_assign.items()))
-            if prop_key in closed:
+            if not chua_gan:
                 continue
             
-            closed.add(prop_key)
+            do_dai = len(chua_gan)
+            if do_dai < do_dai_min:
+                do_dai_min = do_dai
+                ds_bien_tot = Counter()
             
-            # Tính toán chi phí
-            new_g = len(prop_assign) # Chi phí g là số lượng biến đã gán
-            new_h = _count_unsatisfied_clauses(clauses, prop_assign)
-            
-            heapq.heappush(open_heap, (new_g + new_h, new_h, new_g, prop_assign))
+            if do_dai == do_dai_min:
+                for v in chua_gan:
+                    ds_bien_tot[v] += 1
+        
+        if not co_chua_thoa or not ds_bien_tot:
+            continue
 
-    # Kết thúc mà không tìm thấy
+        # chon bien xuat hien nhieu nhat
+        bien_tiep = ds_bien_tot.most_common(1)[0][0]
+
+        # thu ca 2 gia tri True va False
+        for gia_tri in [True, False]:
+            gan_moi = gan_ht.copy()
+            gan_moi[bien_tiep] = gia_tri
+            
+            gan_sau, xung_dot = lan_truyen_don_vi(ds_clause, gan_moi)
+            
+            if xung_dot:
+                continue
+            
+            key_sau = tuple(sorted(gan_sau.items()))
+            if key_sau in da_xet:
+                continue
+            
+            da_xet.add(key_sau)
+            
+            g_moi = len(gan_sau)
+            h_moi = dem_chua_thoa(ds_clause, gan_sau)
+            
+            heapq.heappush(heap, (g_moi + h_moi, h_moi, g_moi, gan_sau))
+
     tracemalloc.stop()
     return None, time.perf_counter() - t0, {
-        'nodes_expanded': nodes_expanded, 
-        'max_open_size': max_open_size
+        'nodes_expanded': so_node, 
+        'max_open_size': max_heap
     }

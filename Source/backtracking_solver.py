@@ -1,135 +1,141 @@
-# backtracking solver cho hashiwokakero
-# su dung ky thuat quay lui va cat tia
-
 from hashiwokakero import Puzzle, PuzzleState, Island
 import time
 
 
 class BacktrackingSolver:
-    # quay lui voi cat tia (pruning)
     
     def __init__(self, puzzle):
         self.puzzle = puzzle
-        self.time_spent = 0
+        self.tg_chay = 0
         self.dem_node = 0
-        self.dem_backtrack = 0
-        self.kq = None  # ket qua
+        self.dem_quay_lui = 0
+        self.loi_giai = None
     
     def solve(self):
         t1 = time.time()
         self.dem_node = 0
-        self.dem_backtrack = 0
-        self.kq = None
+        self.dem_quay_lui = 0
+        self.loi_giai = None
         
         # lay danh sach cac cap dao co the noi
-        cac_cau = self.puzzle.get_possible_bridges()
+        ds_cau = self.puzzle.get_possible_bridges()
+        
+        # sap xep de duyet dao it lua chon truoc (toi uu)
+        ds_cau = self._sap_xep_cau(ds_cau)
+        
         state = PuzzleState()
+        self._quay_lui(state, ds_cau, 0)
         
-        # bat dau quay lui
-        self._bt(state, cac_cau, 0)
-        
-        self.time_spent = time.time() - t1
-        return self.kq
+        self.tg_chay = time.time() - t1
+        return self.loi_giai
     
-    def _bt(self, state, cac_cau, idx):
-        # ham de quy chinh
+    def _sap_xep_cau(self, ds_cau):
+        # tinh so lua chon cua moi dao
+        dem = {}
+        for d in self.puzzle.islands:
+            dem[d] = len(self.puzzle.neighbors[d])
         
-        # da tim thay roi thi return
-        if self.kq != None:
+        # sap xep: uu tien cap dao ma ca 2 deu co it lua chon
+        def tinh_diem(cap):
+            d1, d2 = cap
+            return dem[d1] + dem[d2]
+        
+        return sorted(ds_cau, key=tinh_diem)
+    
+    def _quay_lui(self, state, ds_cau, vi_tri):
+        # da tim duoc thi dung
+        if self.loi_giai is not None:
             return True
         
-        self.dem_node = self.dem_node + 1
+        self.dem_node += 1
         
-        # cat tia: kiem tra feasibility  
-        if not self._check_feasible(state):
-            self.dem_backtrack += 1
+        # cat tia som neu khong kha thi
+        if not self._kha_thi(state):
+            self.dem_quay_lui += 1
             return False
         
-        # het cau de xet
-        if idx >= len(cac_cau):
+        # het cau de duyet -> kiem tra loi giai
+        if vi_tri >= len(ds_cau):
             if self.puzzle.is_solution(state):
-                self.kq = state.copy()
+                self.loi_giai = state.copy()
                 return True
-            self.dem_backtrack += 1
+            self.dem_quay_lui += 1
             return False
         
-        dao1, dao2 = cac_cau[idx]
+        dao1, dao2 = ds_cau[vi_tri]
         
-        # thu lan luot 0, 1, 2 cau
+        # thu 0, 1, 2 cau cho cap nay
         for so_cau in [0, 1, 2]:
-            if so_cau > 0:
-                if not self._co_the_them(state, dao1, dao2, so_cau):
-                    continue
+            # kiem tra co the them so cau nay khong
+            if so_cau > 0 and not self._co_the_them(state, dao1, dao2, so_cau):
+                continue
             
-            state_moi = state.copy()
-            if so_cau > 0:
-                state_moi.bridges[(dao1, dao2)] = so_cau
+            # kiem tra cat nhau
+            if so_cau > 0 and self._bi_cat(state, dao1, dao2):
+                continue
             
-            # check giao nhau
+            # tao state moi va tiep tuc
+            st_moi = state.copy()
             if so_cau > 0:
-                if self._bi_giao(state, dao1, dao2):
-                    continue
+                st_moi.bridges[(dao1, dao2)] = so_cau
             
-            if self._bt(state_moi, cac_cau, idx + 1):
+            if self._quay_lui(st_moi, ds_cau, vi_tri + 1):
                 return True
         
-        self.dem_backtrack += 1
+        self.dem_quay_lui += 1
         return False
     
-    def _check_feasible(self, state):
-        # kiem tra state hien tai co kha thi ko
+    def _kha_thi(self, state):
+        # kiem tra moi dao co the dat yeu cau khong
         for dao in self.puzzle.islands:
             hien_tai = state.get_total_bridges(dao, self.puzzle.neighbors[dao])
             
+            # qua so cau yeu cau
             if hien_tai > dao.value:
-                return False  # qua nhieu cau
+                return False
             
-            thieu = dao.value - hien_tai
+            con_thieu = dao.value - hien_tai
             
             # dem so cau con co the them
-            con_them_duoc = 0
+            co_the_them = 0
             for nb in self.puzzle.neighbors[dao]:
                 da_co = state.get_bridge_count(dao, nb)
-                them = 2 - da_co
+                con_cho = 2 - da_co
                 
-                # lang gieng con bao nhieu cho?
-                nb_hien_tai = state.get_total_bridges(nb, self.puzzle.neighbors[nb])
-                nb_cho = nb.value - nb_hien_tai
-                if nb_cho < them:
-                    them = nb_cho
+                # kiem tra dao ke con cho bao nhieu
+                nb_hien = state.get_total_bridges(nb, self.puzzle.neighbors[nb])
+                nb_con = nb.value - nb_hien
                 
+                them = min(con_cho, nb_con)
                 if them > 0:
-                    con_them_duoc = con_them_duoc + them
+                    co_the_them += them
             
-            if con_them_duoc < thieu:
+            # khong du cho de dap ung yeu cau
+            if co_the_them < con_thieu:
                 return False
         
         return True
     
-    def _co_the_them(self, state, dao1, dao2, so_cau):
-        # kiem tra co the them so_cau cau ko
-        c1 = state.get_total_bridges(dao1, self.puzzle.neighbors[dao1])
-        c2 = state.get_total_bridges(dao2, self.puzzle.neighbors[dao2])
+    def _co_the_them(self, state, d1, d2, so_cau):
+        # kiem tra 2 dao con cho phep them so_cau cau nua khong
+        c1 = state.get_total_bridges(d1, self.puzzle.neighbors[d1])
+        c2 = state.get_total_bridges(d2, self.puzzle.neighbors[d2])
         
-        if c1 + so_cau > dao1.value:
-            return False
-        if c2 + so_cau > dao2.value:
-            return False
-        return True
+        return (c1 + so_cau <= d1.value) and (c2 + so_cau <= d2.value)
     
-    def _bi_giao(self, state, dao1, dao2):
-        # check cau moi co giao cau cu ko
+    def _bi_cat(self, state, d1, d2):
+        # kiem tra cau moi co cat cau nao da co khong
         for key, cnt in state.bridges.items():
             if cnt > 0:
-                if self.puzzle.bridges_cross(dao1, dao2, key[0], key[1]):
+                if self.puzzle.bridges_cross(d1, d2, key[0], key[1]):
                     return True
         return False
     
     def get_stats(self):
         return {
-            "time": self.time_spent,
+            "time": self.tg_chay,
             "nodes": self.dem_node,
-            "backtracks": self.dem_backtrack,
+            "backtracks": self.dem_quay_lui,
             "algorithm": "Backtracking"
         }
 
@@ -137,4 +143,4 @@ class BacktrackingSolver:
 def solve_backtracking(puzzle):
     solver = BacktrackingSolver(puzzle)
     kq = solver.solve()
-    return kq, solver.time_spent, solver.get_stats()
+    return kq, solver.tg_chay, solver.get_stats()

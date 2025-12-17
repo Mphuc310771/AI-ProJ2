@@ -1,13 +1,8 @@
-"""
-hashiwokakero puzzle structure
-"""
 from dataclasses import dataclass, field
 from enum import Enum
-import copy
 
 
 class Direction(Enum):
-    """4 huong di chuyen"""
     UP = (-1, 0)
     DOWN = (1, 0)
     LEFT = (0, -1)
@@ -16,36 +11,34 @@ class Direction(Enum):
 
 @dataclass
 class Island:
-    """1 dao trong puzzle"""
     row: int
     col: int
-    value: int  # so cau can noi
+    value: int
     
     def __hash__(self):
         return hash((self.row, self.col))
     
-    def __eq__(self, other):
-        if not isinstance(other, Island):
+    def __eq__(self, khac):
+        if not isinstance(khac, Island):
             return False
-        return self.row == other.row and self.col == other.col
+        return self.row == khac.row and self.col == khac.col
     
     def __repr__(self):
-        return "Island(%d, %d, %d)" % (self.row, self.col, self.value)
+        return "Island(%d,%d,val=%d)" % (self.row, self.col, self.value)
 
 
 @dataclass  
 class Bridge:
-    """cau noi 2 dao"""
     island1: Island
     island2: Island
-    count: int  # 1 hoac 2 cau
+    count: int
     
     def __post_init__(self):
-        # dam bao island1 luon o tren/trai hon island2
+        # sap xep de island1 luon nho hon island2
         if (self.island1.row, self.island1.col) > (self.island2.row, self.island2.col):
-            temp = self.island1
+            tmp = self.island1
             self.island1 = self.island2
-            self.island2 = temp
+            self.island2 = tmp
     
     def is_horizontal(self):
         return self.island1.row == self.island2.row
@@ -54,70 +47,63 @@ class Bridge:
         return self.island1.col == self.island2.col
     
     def get_cells(self):
-        """lay cac o ma cau di qua (khong tinh 2 dao)"""
-        cells = []
+        # tra ve danh sach cac o ma cau di qua (ko tinh 2 dau)
+        ds = []
         if self.is_horizontal():
             c = self.island1.col + 1
             while c < self.island2.col:
-                cells.append((self.island1.row, c))
+                ds.append((self.island1.row, c))
                 c += 1
         else:
             r = self.island1.row + 1
             while r < self.island2.row:
-                cells.append((r, self.island1.col))
+                ds.append((r, self.island1.col))
                 r += 1
-        return cells
+        return ds
     
     def __hash__(self):
         return hash((self.island1.row, self.island1.col, 
                      self.island2.row, self.island2.col))
     
-    def __eq__(self, other):
-        if not isinstance(other, Bridge):
+    def __eq__(self, khac):
+        if not isinstance(khac, Bridge):
             return False
-        return self.island1 == other.island1 and self.island2 == other.island2
+        return self.island1 == khac.island1 and self.island2 == khac.island2
 
 
 @dataclass
 class PuzzleState:
-    """trang thai cua puzzle - luu cac cau da noi"""
     bridges: dict = field(default_factory=dict)
     
     def copy(self):
-        new_state = PuzzleState()
-        new_state.bridges = dict(self.bridges)
-        return new_state
+        st = PuzzleState()
+        st.bridges = dict(self.bridges)
+        return st
     
-    def add_bridge(self, isl1, isl2, count=1):
-        """them cau giua 2 dao"""
-        # sap xep de key nhat quan
-        if (isl1.row, isl1.col) < (isl2.row, isl2.col):
-            key = (isl1, isl2)
+    def add_bridge(self, d1, d2, so_cau=1):
+        # dam bao thu tu nhat quan
+        if (d1.row, d1.col) < (d2.row, d2.col):
+            k = (d1, d2)
         else:
-            key = (isl2, isl1)
+            k = (d2, d1)
         
-        if key in self.bridges:
-            self.bridges[key] = self.bridges[key] + count
+        if k in self.bridges:
+            self.bridges[k] += so_cau
         else:
-            self.bridges[key] = count
+            self.bridges[k] = so_cau
     
-    def get_bridge_count(self, isl1, isl2):
-        """dem so cau giua 2 dao"""
-        if (isl1.row, isl1.col) < (isl2.row, isl2.col):
-            key = (isl1, isl2)
+    def get_bridge_count(self, d1, d2):
+        if (d1.row, d1.col) < (d2.row, d2.col):
+            k = (d1, d2)
         else:
-            key = (isl2, isl1)
-        
-        if key in self.bridges:
-            return self.bridges[key]
-        return 0
+            k = (d2, d1)
+        return self.bridges.get(k, 0)
     
-    def get_total_bridges(self, island, neighbor_list):
-        """tong so cau noi voi 1 dao"""
-        total = 0
-        for nb in neighbor_list:
-            total += self.get_bridge_count(island, nb)
-        return total
+    def get_total_bridges(self, dao, ds_neighbor):
+        tong = 0
+        for nb in ds_neighbor:
+            tong += self.get_bridge_count(dao, nb)
+        return tong
     
     def __hash__(self):
         items = []
@@ -126,230 +112,201 @@ class PuzzleState:
         items.sort()
         return hash(tuple(items))
     
-    def __eq__(self, other):
-        if not isinstance(other, PuzzleState):
+    def __eq__(self, khac):
+        if not isinstance(khac, PuzzleState):
             return False
-        return self.bridges == other.bridges
+        return self.bridges == khac.bridges
     
-    def __lt__(self, other):
-        # can cho heapq
-        return hash(self) < hash(other)
+    def __lt__(self, khac):
+        return hash(self) < hash(khac)
 
 
 class Puzzle:
-    """class chinh bieu dien puzzle hashiwokakero"""
     
     def __init__(self, grid):
         self.grid = grid
         self.rows = len(grid)
-        if len(grid) > 0:
-            self.cols = len(grid[0])
-        else:
-            self.cols = 0
+        self.cols = len(grid[0]) if len(grid) > 0 else 0
         self.islands = []
-        self.island_map = {}  # (row, col) -> Island
-        self.neighbors = {}   # Island -> list cac dao ke
+        self.island_map = {}
+        self.neighbors = {}
         
-        self._parse_grid()
-        self._find_neighbors()
+        self._doc_grid()
+        self._tim_neighbor()
     
-    def _parse_grid(self):
-        """tim tat ca cac dao trong grid"""
+    def _doc_grid(self):
+        # duyet qua grid de tim cac dao
         for r in range(self.rows):
             for c in range(self.cols):
-                val = self.grid[r][c]
-                if val > 0:
-                    isl = Island(r, c, val)
-                    self.islands.append(isl)
-                    self.island_map[(r, c)] = isl
+                v = self.grid[r][c]
+                if v > 0:
+                    dao = Island(r, c, v)
+                    self.islands.append(dao)
+                    self.island_map[(r, c)] = dao
     
-    def _find_neighbors(self):
-        """tim cac dao ke theo 4 huong"""
-        for isl in self.islands:
-            self.neighbors[isl] = []
+    def _tim_neighbor(self):
+        # voi moi dao, tim cac dao ke theo 4 huong
+        for dao in self.islands:
+            self.neighbors[dao] = []
             
-            # duyet 4 huong
-            for direction in Direction:
-                dr, dc = direction.value
-                r = isl.row + dr
-                c = isl.col + dc
+            for huong in Direction:
+                dr, dc = huong.value
+                r, c = dao.row + dr, dao.col + dc
                 
-                # di theo huong do den khi gap dao hoac ra ngoai
-                while r >= 0 and r < self.rows and c >= 0 and c < self.cols:
+                # di theo huong cho den khi gap dao hoac ra ngoai
+                while 0 <= r < self.rows and 0 <= c < self.cols:
                     if (r, c) in self.island_map:
-                        self.neighbors[isl].append(self.island_map[(r, c)])
+                        self.neighbors[dao].append(self.island_map[(r, c)])
                         break
-                    r = r + dr
-                    c = c + dc
+                    r += dr
+                    c += dc
     
     def get_possible_bridges(self):
-        """lay tat ca cac cap dao co the noi cau"""
-        bridge_set = set()
-        for isl in self.islands:
-            for nb in self.neighbors[isl]:
-                if (isl.row, isl.col) < (nb.row, nb.col):
-                    bridge_set.add((isl, nb))
+        # lay tat ca cap dao co the noi cau
+        ds = set()
+        for dao in self.islands:
+            for nb in self.neighbors[dao]:
+                if (dao.row, dao.col) < (nb.row, nb.col):
+                    ds.add((dao, nb))
                 else:
-                    bridge_set.add((nb, isl))
-        return list(bridge_set)
+                    ds.add((nb, dao))
+        return list(ds)
     
-    def bridges_cross(self, start1, end1, start2, end2):
-        """kiem tra 2 cau co giao nhau khong"""
-        # 1 ngang 1 doc moi co the giao
-        if start1.row == end1.row:  # cau 1 ngang
-            if start2.col == end2.col:  # cau 2 doc
-                h_row = start1.row
-                h_c1 = min(start1.col, end1.col)
-                h_c2 = max(start1.col, end1.col)
-                v_col = start2.col
-                v_r1 = min(start2.row, end2.row)
-                v_r2 = max(start2.row, end2.row)
-                
-                # giao nhau neu diem giao nam trong ca 2 doan
-                if h_c1 < v_col and v_col < h_c2:
-                    if v_r1 < h_row and h_row < v_r2:
-                        return True
-                    
-        elif start1.col == end1.col:  # cau 1 doc
-            if start2.row == end2.row:  # cau 2 ngang
-                return self.bridges_cross(start2, end2, start1, end1)
+    def bridges_cross(self, s1, e1, s2, e2):
+        # kiem tra 2 cau co cat nhau khong
+        # cau 1: s1 -> e1, cau 2: s2 -> e2
+        
+        # truong hop cau 1 ngang, cau 2 doc
+        if s1.row == e1.row and s2.col == e2.col:
+            row_h = s1.row
+            c_min = min(s1.col, e1.col)
+            c_max = max(s1.col, e1.col)
+            
+            col_v = s2.col
+            r_min = min(s2.row, e2.row)
+            r_max = max(s2.row, e2.row)
+            
+            # cat khi cot cua cau doc nam giua 2 dau cau ngang
+            # va hang cua cau ngang nam giua 2 dau cau doc
+            if c_min < col_v < c_max and r_min < row_h < r_max:
+                return True
+        
+        # truong hop cau 1 doc, cau 2 ngang -> swap roi goi lai
+        if s1.col == e1.col and s2.row == e2.row:
+            return self.bridges_cross(s2, e2, s1, e1)
         
         return False
     
-    def bridge_crosses_island(self, start, end):
-        """kiem tra cau co di qua dao khac khong"""
-        if start.row == end.row:
-            # cau ngang
-            c1 = min(start.col, end.col)
-            c2 = max(start.col, end.col)
+    def bridge_crosses_island(self, dau, cuoi):
+        # kiem tra cau co di qua dao nao khong
+        if dau.row == cuoi.row:
+            c1, c2 = min(dau.col, cuoi.col), max(dau.col, cuoi.col)
             for c in range(c1 + 1, c2):
-                if (start.row, c) in self.island_map:
+                if (dau.row, c) in self.island_map:
                     return True
         else:
-            # cau doc
-            r1 = min(start.row, end.row)
-            r2 = max(start.row, end.row)
+            r1, r2 = min(dau.row, cuoi.row), max(dau.row, cuoi.row)
             for r in range(r1 + 1, r2):
-                if (r, start.col) in self.island_map:
+                if (r, dau.col) in self.island_map:
                     return True
         return False
     
     def is_connected(self, state):
-        """BFS kiem tra tat ca dao co lien thong khong"""
+        # kiem tra tat ca dao co lien thong qua cau khong (BFS)
         if len(self.islands) == 0:
             return True
         
-        visited = set()
-        queue = [self.islands[0]]
-        visited.add(self.islands[0])
+        da_tham = set()
+        hang_doi = [self.islands[0]]
+        da_tham.add(self.islands[0])
         
-        while len(queue) > 0:
-            current = queue.pop(0)
-            for nb in self.neighbors[current]:
-                if nb not in visited:
-                    # chi di duoc neu co cau
-                    if state.get_bridge_count(current, nb) > 0:
-                        visited.add(nb)
-                        queue.append(nb)
+        while hang_doi:
+            hien_tai = hang_doi.pop(0)
+            for nb in self.neighbors[hien_tai]:
+                if nb not in da_tham and state.get_bridge_count(hien_tai, nb) > 0:
+                    da_tham.add(nb)
+                    hang_doi.append(nb)
         
-        return len(visited) == len(self.islands)
+        return len(da_tham) == len(self.islands)
     
     def is_valid(self, state):
-        """kiem tra trang thai co hop le khong"""
-        # kiem tra so cau khong vuot qua
-        for isl in self.islands:
-            cnt = state.get_total_bridges(isl, self.neighbors[isl])
-            if cnt > isl.value:
+        # kiem tra trang thai hop le (chua vuot qua so cau yeu cau, ko cat nhau)
+        for dao in self.islands:
+            so_cau = state.get_total_bridges(dao, self.neighbors[dao])
+            if so_cau > dao.value:
                 return False
         
-        # kiem tra cau khong giao nhau
-        bridge_list = []
-        for key, cnt in state.bridges.items():
+        # lay danh sach cac cau dang co
+        ds_cau = []
+        for k, cnt in state.bridges.items():
             if cnt > 0:
-                bridge_list.append(key)
+                ds_cau.append(k)
         
-        for i in range(len(bridge_list)):
-            for j in range(i + 1, len(bridge_list)):
-                b1 = bridge_list[i]
-                b2 = bridge_list[j]
-                if self.bridges_cross(b1[0], b1[1], b2[0], b2[1]):
+        # kiem tra tung cap cau xem co cat nhau ko
+        for i in range(len(ds_cau)):
+            for j in range(i + 1, len(ds_cau)):
+                c1, c2 = ds_cau[i], ds_cau[j]
+                if self.bridges_cross(c1[0], c1[1], c2[0], c2[1]):
                     return False
         
         return True
     
     def is_solution(self, state):
-        """kiem tra day co phai loi giai day du khong"""
-        # moi dao phai co dung so cau
-        for isl in self.islands:
-            cnt = state.get_total_bridges(isl, self.neighbors[isl])
-            if cnt != isl.value:
+        # kiem tra da giai xong chua
+        for dao in self.islands:
+            so_cau = state.get_total_bridges(dao, self.neighbors[dao])
+            if so_cau != dao.value:
                 return False
         
-        # phai lien thong
         if not self.is_connected(state):
             return False
         
-        # khong co cau giao nhau
         return self.is_valid(state)
     
     def state_to_output(self, state):
-        """chuyen state thanh output grid"""
-        output = []
+        # chuyen state thanh dang output de hien thi
+        out = []
         for r in range(self.rows):
-            row = []
-            for c in range(self.cols):
-                row.append('0')
-            output.append(row)
+            dong = ['0'] * self.cols
+            out.append(dong)
         
-        # dat cac dao
-        for isl in self.islands:
-            output[isl.row][isl.col] = str(isl.value)
+        # dien so dao
+        for dao in self.islands:
+            out[dao.row][dao.col] = str(dao.value)
         
-        # dat cac cau
-        for key, cnt in state.bridges.items():
+        # ve cau
+        for k, cnt in state.bridges.items():
             if cnt == 0:
                 continue
             
-            i1, i2 = key
+            d1, d2 = k
             
-            if i1.row == i2.row:
+            if d1.row == d2.row:
                 # cau ngang
-                if cnt == 1:
-                    symbol = '-'
-                else:
-                    symbol = '='
-                c1 = min(i1.col, i2.col)
-                c2 = max(i1.col, i2.col)
+                ky_hieu = '-' if cnt == 1 else '='
+                c1, c2 = min(d1.col, d2.col), max(d1.col, d2.col)
                 for c in range(c1 + 1, c2):
-                    output[i1.row][c] = symbol
+                    out[d1.row][c] = ky_hieu
             else:
                 # cau doc
-                if cnt == 1:
-                    symbol = '|'
-                else:
-                    symbol = '$'
-                r1 = min(i1.row, i2.row)
-                r2 = max(i1.row, i2.row)
+                ky_hieu = '|' if cnt == 1 else '$'
+                r1, r2 = min(d1.row, d2.row), max(d1.row, d2.row)
                 for r in range(r1 + 1, r2):
-                    output[r][i1.col] = symbol
+                    out[r][d1.col] = ky_hieu
         
-        return output
+        return out
     
     @staticmethod
-    def from_file(filepath):
-        """doc puzzle tu file"""
+    def from_file(duong_dan):
         grid = []
-        f = open(filepath, 'r')
-        for line in f:
-            line = line.strip()
-            if line != "":
-                parts = line.split(',')
-                row = []
-                for p in parts:
-                    row.append(int(p))
-                grid.append(row)
-        f.close()
+        with open(duong_dan, 'r') as f:
+            for dong in f:
+                dong = dong.strip()
+                if dong:
+                    parts = dong.split(',')
+                    hang = [int(p.strip()) for p in parts]
+                    grid.append(hang)
         return Puzzle(grid)
     
     def __repr__(self):
-        return "Puzzle(%dx%d, %d islands)" % (self.rows, self.cols, len(self.islands))
+        return "Puzzle(%dx%d, %d dao)" % (self.rows, self.cols, len(self.islands))

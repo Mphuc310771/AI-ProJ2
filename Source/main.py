@@ -1,6 +1,3 @@
-# main program
-# giai puzzle hashiwokakero
-
 import argparse
 import os
 import sys
@@ -14,7 +11,6 @@ from backtracking_solver import solve_backtracking
 from utils import print_puzzle, print_solution, print_output, save_output, compare_algorithms, make_table, get_input_files
 
 
-# anh xa ten thuat toan vao ham giai
 CAC_SOLVER = {
     'pysat': solve_sat,
     'astar': solve_astar,
@@ -28,8 +24,6 @@ def get_solver(ten):
 
 
 def giai_puzzle(file_input, algo='pysat', file_output=None, in_ra=True):
-    # doc va giai 1 puzzle
-    
     if in_ra:
         print("Dang doc:", file_input)
     
@@ -38,7 +32,6 @@ def giai_puzzle(file_input, algo='pysat', file_output=None, in_ra=True):
     if in_ra:
         print_puzzle(puzzle)
     
-    # lay ham giai
     solver_fn = get_solver(algo)
     if solver_fn == None:
         print("Khong biet thuat toan:", algo)
@@ -48,7 +41,6 @@ def giai_puzzle(file_input, algo='pysat', file_output=None, in_ra=True):
     if in_ra:
         print("Dang giai bang", algo, "...")
     
-    # giai
     loi_giai, thoi_gian, stats = solver_fn(puzzle)
     
     if loi_giai == None:
@@ -65,7 +57,6 @@ def giai_puzzle(file_input, algo='pysat', file_output=None, in_ra=True):
     output = puzzle.state_to_output(loi_giai)
     print_output(output)
     
-    # luu file
     if file_output != None:
         save_output(output, file_output)
         if in_ra:
@@ -82,8 +73,6 @@ def giai_puzzle(file_input, algo='pysat', file_output=None, in_ra=True):
 
 
 def chay_benchmark(folder_in='Inputs', folder_out='Outputs'):
-    # test tat ca file input
-    
     print("=" * 50)
     print("HASHIWOKAKERO BENCHMARK")
     print("=" * 50)
@@ -98,7 +87,6 @@ def chay_benchmark(folder_in='Inputs', folder_out='Outputs'):
     print("Tim thay %d file" % len(cac_file))
     print()
     
-    # cac thuat toan
     algos = {
         'PySAT': solve_sat,
         'A*': solve_astar,
@@ -119,7 +107,6 @@ def chay_benchmark(folder_in='Inputs', folder_out='Outputs'):
             print("Kich thuoc: %dx%d, %d dao" % (puzzle.rows, puzzle.cols, so_dao))
             print()
             
-            # chi dung bruteforce cho puzzle nho
             test_algos = algos.copy()
             so_cau = len(puzzle.get_possible_bridges())
             if so_cau <= 12:
@@ -128,7 +115,6 @@ def chay_benchmark(folder_in='Inputs', folder_out='Outputs'):
             kq = compare_algorithms(puzzle, test_algos)
             tat_ca_ket_qua[fname] = kq
             
-            # luu output
             for alg in kq:
                 if kq[alg].get('success'):
                     fn = test_algos[alg]
@@ -146,7 +132,6 @@ def chay_benchmark(folder_in='Inputs', folder_out='Outputs'):
         
         print()
     
-    # tong ket
     print("=" * 50)
     print("TONG KET")
     print("=" * 50)
@@ -165,13 +150,12 @@ def chay_benchmark(folder_in='Inputs', folder_out='Outputs'):
 
 
 def main():
-    # parse tham so dong lenh
     parser = argparse.ArgumentParser(description='Hashiwokakero Puzzle Solver')
     
     parser.add_argument('--input', '-i', type=str, help='file input')
     parser.add_argument('--algorithm', '-a', type=str, default='pysat',
                         choices=['pysat', 'astar', 'bruteforce', 'backtracking'],
-                        help='thuat toan (mac dinh: pysat)')
+                        help='thuat toan')
     parser.add_argument('--output', '-o', type=str, help='file output')
     parser.add_argument('--benchmark', '-b', action='store_true', help='chay benchmark')
     parser.add_argument('--quiet', '-q', action='store_true', help='im lang')

@@ -1,5 +1,3 @@
-# cac ham tien ich
-
 from hashiwokakero import Puzzle, PuzzleState
 import os
 import time
@@ -7,156 +5,151 @@ import tracemalloc
 
 
 def format_output(grid):
-    # chuyen grid thanh string
-    kq = []
+    ds = []
     for row in grid:
-        kq.append(str(row))
-    return '\n'.join(kq)
+        ds.append(str(row))
+    return '\n'.join(ds)
 
 
 def save_output(grid, duong_dan):
-    # luu grid ra file
-    f = open(duong_dan, 'w', encoding='utf-8')
-    f.write(format_output(grid))
-    f.close()
+    with open(duong_dan, 'w', encoding='utf-8') as f:
+        f.write(format_output(grid))
 
 
 def print_puzzle(puzzle):
-    # in puzzle ra man hinh
     print("Puzzle: %dx%d, %d dao" % (puzzle.rows, puzzle.cols, len(puzzle.islands)))
     for row in puzzle.grid:
         dong = ""
-        for x in row:
-            if x > 0:
-                dong = dong + str(x) + " "
+        for val in row:
+            if val > 0:
+                dong += str(val) + " "
             else:
-                dong = dong + ". "
+                dong += ". "
         print(dong)
     print()
 
 
 def print_solution(puzzle, state):
-    # in loi giai
-    output = puzzle.state_to_output(state)
+    out = puzzle.state_to_output(state)
     print("Loi giai:")
-    for row in output:
+    for row in out:
         print(' '.join(row))
     print()
 
 
 def print_output(grid):
-    # in output format
     for row in grid:
         print(row)
 
 
-def measure_memory(ham, *args, **kwargs):
-    # do bo nho
+def do_bo_nho(ham, *args, **kwargs):
+    """Do bo nho su dung cua ham"""
     tracemalloc.start()
     kq = ham(*args, **kwargs)
-    cur, peak = tracemalloc.get_traced_memory()
+    hien_tai, dinh = tracemalloc.get_traced_memory()
     tracemalloc.stop()
-    return kq, peak / 1024 / 1024
+    return kq, dinh / 1024 / 1024  # tra ve MB
 
 
-def compare_algorithms(puzzle, danh_sach_algo, timeout=60.0):
-    # so sanh cac thuat toan
+def compare_algorithms(puzzle, ds_algo, timeout=60.0):
+    """So sanh cac thuat toan tren cung 1 puzzle"""
     ket_qua = {}
     
-    for ten in danh_sach_algo:
-        ham = danh_sach_algo[ten]
-        print("Dang chay %s..." % ten)
+    for ten_algo in ds_algo:
+        ham = ds_algo[ten_algo]
+        print("Dang chay %s..." % ten_algo)
         
         try:
             tracemalloc.start()
             t1 = time.time()
             
-            sol, t, stats = ham(puzzle)
+            loi_giai, tg, thong_ke = ham(puzzle)
             
-            cur, peak = tracemalloc.get_traced_memory()
+            hien_tai, dinh = tracemalloc.get_traced_memory()
             tracemalloc.stop()
             
-            ket_qua[ten] = {
-                "success": sol != None,
-                "time": t,
-                "memory_mb": peak / 1024 / 1024,
-                "stats": stats
+            ket_qua[ten_algo] = {
+                "success": loi_giai is not None,
+                "time": tg,
+                "memory_mb": dinh / 1024 / 1024,
+                "stats": thong_ke
             }
             
-            if sol != None:
-                ket_qua[ten]["valid"] = puzzle.is_solution(sol)
+            if loi_giai is not None:
+                ket_qua[ten_algo]["valid"] = puzzle.is_solution(loi_giai)
         
-        except Exception as e:
+        except Exception as loi:
             tracemalloc.stop()
-            ket_qua[ten] = {
+            ket_qua[ten_algo] = {
                 "success": False,
-                "error": str(e)
+                "error": str(loi)
             }
         
-        # in status
-        if ket_qua[ten].get('success'):
-            print("  %s: OK" % ten)
+        # in ket qua
+        if ket_qua[ten_algo].get('success'):
+            print("  %s: OK" % ten_algo)
         else:
-            print("  %s: FAIL" % ten)
+            print("  %s: FAIL" % ten_algo)
         
-        if ket_qua[ten].get('time'):
-            print("  Thoi gian: %.4fs" % ket_qua[ten]['time'])
+        if ket_qua[ten_algo].get('time'):
+            print("  Thoi gian: %.4fs" % ket_qua[ten_algo]['time'])
         print()
     
     return ket_qua
 
 
-def make_table(all_results):
-    # tao bang markdown de in
-    if len(all_results) == 0:
+def make_table(tat_ca_kq):
+    """Tao bang so sanh dang markdown"""
+    if len(tat_ca_kq) == 0:
         return ""
     
-    # lay ten cac algo
-    first = list(all_results.keys())[0]
-    algo_names = list(all_results[first].keys())
+    # lay ten cac algo tu file dau tien
+    file_dau = list(tat_ca_kq.keys())[0]
+    ds_algo = list(tat_ca_kq[file_dau].keys())
     
-    lines = []
+    ds_dong = []
     
     # header
     header = "| File |"
-    for a in algo_names:
-        header = header + " " + a + " |"
-    lines.append(header)
+    for a in ds_algo:
+        header += " " + a + " |"
+    ds_dong.append(header)
     
-    # sep
+    # separator
     sep = "|"
-    for i in range(len(algo_names) + 1):
-        sep = sep + "---|"
-    lines.append(sep)
+    for _ in range(len(ds_algo) + 1):
+        sep += "---|"
+    ds_dong.append(sep)
     
-    # rows
-    for fname in all_results:
-        res = all_results[fname]
+    # data rows
+    for fname in tat_ca_kq:
+        res = tat_ca_kq[fname]
         row = "| " + fname + " |"
-        for a in algo_names:
-            if a in res and res[a].get('time') != None:
-                row = row + " %.4fs |" % res[a]['time']
+        
+        for a in ds_algo:
+            if a in res and res[a].get('time') is not None:
+                row += " %.4fs |" % res[a]['time']
             else:
-                row = row + " N/A |"
-        lines.append(row)
+                row += " N/A |"
+        
+        ds_dong.append(row)
     
-    return '\n'.join(lines)
+    return '\n'.join(ds_dong)
 
 
 def check_input_file(duong_dan):
-    # kiem tra file input co hop le ko
+    """Kiem tra file input co hop le khong"""
     try:
-        f = open(duong_dan, 'r')
-        cac_dong = f.readlines()
-        f.close()
+        with open(duong_dan, 'r') as f:
+            ds_dong = f.readlines()
         
-        if len(cac_dong) == 0:
+        if len(ds_dong) == 0:
             return False
         
         so_cot = None
-        for dong in cac_dong:
+        for dong in ds_dong:
             dong = dong.strip()
-            if dong == "":
+            if not dong:
                 continue
             
             parts = dong.split(',')
@@ -165,11 +158,10 @@ def check_input_file(duong_dan):
                 if val < 0 or val > 8:
                     return False
             
-            if so_cot == None:
+            if so_cot is None:
                 so_cot = len(parts)
-            else:
-                if len(parts) != so_cot:
-                    return False
+            elif len(parts) != so_cot:
+                return False
         
         return True
     except:
@@ -177,10 +169,10 @@ def check_input_file(duong_dan):
 
 
 def get_input_files(folder):
-    # lay danh sach cac file input
-    kq = []
+    """Lay danh sach cac file input trong folder"""
+    ds = []
     for ten in os.listdir(folder):
         if ten.startswith('input-') and ten.endswith('.txt'):
-            kq.append(os.path.join(folder, ten))
-    kq.sort()
-    return kq
+            ds.append(os.path.join(folder, ten))
+    ds.sort()
+    return ds
