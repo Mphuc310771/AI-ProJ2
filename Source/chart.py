@@ -1,45 +1,167 @@
 import matplotlib.pyplot as plt
 import pandas as pd
+import matplotlib.pyplot as plt
+import pandas as pd
 import numpy as np
 
-# 1. Chuẩn bị dữ liệu từ bảng kết quả của bạn
-data = {
-    'Input File': ['input-01', 'input-02', 'input-03', 'input-04', 'input-05', 
-                    'input-06', 'input-07', 'input-08', 'input-09', 'input-10'],
-    'PySAT': [2.1407, 1.8747, 2.1578, 2.0146, 2.0546, 2.0022, 2.4420, 2.1014, 1.9350, 2.1064],
-    'A*': [2.1700, 1.8266, 2.3348, 2.6636, np.nan, np.nan, 2.6573, np.nan, 2.0446, np.nan],
-    # Quy đổi Timeout thành 10 giây để minh họa trực quan
-    'Backtracking': [7.3936, 10.0, 6.8947, 10.0, 2.1505, 2.3539, 5.3300, 1.9161, 10.0, 10.0],
-    'Brute-force': [6.5666, 10.0, 7.8280, 10.0, 2.6146, 2.7676, 3.3559, 2.1699, 10.0, 10.0]
-}
 
-df = pd.DataFrame(data)
+# RAW TABLE: dán bảng kết quả ở đây (mỗi dòng một record)
+raw_table = '''
+File            | Algo         | Time (s)   | Mem (MB)   | Status
+--------------------------------------------------------------------------------
+input-01.txt    | pysat        | 0.1378     | 22.30      | OK
+input-01.txt    | astar        | 0.1460     | 22.42      | OK
+input-01.txt    | backtracking | 4.6556     | 22.27      | OK
+input-01.txt    | bruteforce   | 3.7611     | 22.20      | OK
+input-02.txt    | pysat        | 0.1324     | 23.12      | OK
+input-02.txt    | astar        | 0.1816     | 22.48      | OK
+input-02.txt    | backtracking | Timeout    | N/A        | Timeout (>60s)
+input-02.txt    | bruteforce   | Timeout    | N/A        | Timeout (>60s)
+input-03.txt    | pysat        | 0.1331     | 22.36      | OK
+input-03.txt    | astar        | 0.1531     | 22.44      | OK
+input-03.txt    | backtracking | 3.4071     | 22.21      | OK
+input-03.txt    | bruteforce   | 4.1443     | 22.22      | OK
+input-04.txt    | pysat        | 0.1375     | 22.71      | OK
+input-04.txt    | astar        | 0.6297     | 24.89      | OK
+input-04.txt    | backtracking | Timeout    | N/A        | Timeout (>60s)
+input-04.txt    | bruteforce   | Timeout    | N/A        | Timeout (>60s)
+input-05.txt    | pysat        | 0.1950     | 26.38      | OK
+input-05.txt    | astar        | Timeout    | N/A        | Timeout (>60s)
+input-05.txt    | backtracking | Timeout    | N/A        | Timeout (>60s)
+input-05.txt    | bruteforce   | Timeout    | N/A        | Timeout (>60s)
+input-06.txt    | pysat        | 0.1465     | 22.30      | OK
+input-06.txt    | astar        | 0.1771     | 22.66      | OK
+input-06.txt    | backtracking | Timeout    | N/A        | Timeout (>60s)
+input-06.txt    | bruteforce   | Timeout    | N/A        | Timeout (>60s)
+input-07.txt    | pysat        | 0.1323     | 22.66      | OK
+input-07.txt    | astar        | 1.7412     | 28.33      | OK
+input-07.txt    | backtracking | Timeout    | N/A        | Timeout (>60s)
+input-07.txt    | bruteforce   | Timeout    | N/A        | Timeout (>60s)
+input-08.txt    | pysat        | 0.1631     | 23.51      | OK
+input-08.txt    | astar        | 7.3092     | 46.05      | OK
+input-08.txt    | backtracking | Timeout    | N/A        | Timeout (>60s)
+input-08.txt    | bruteforce   | Timeout    | N/A        | Timeout (>60s)
+input-09.txt    | pysat        | 0.1439     | 23.60      | OK
+input-09.txt    | astar        | 40.1612    | 200.59     | OK
+input-09.txt    | backtracking | Timeout    | N/A        | Timeout (>60s)
+input-09.txt    | bruteforce   | Timeout    | N/A        | Timeout (>60s)
+input-10.txt    | pysat        | 0.1611     | 24.72      | OK
+input-10.txt    | astar        | Timeout    | N/A        | Timeout (>60s)
+input-10.txt    | backtracking | Timeout    | N/A        | Timeout (>60s)
+input-10.txt    | bruteforce   | Timeout    | N/A        | Timeout (>60s)
+'''
 
-# 2. Cấu hình vẽ biểu đồ
-plt.figure(figsize=(12, 7))
 
-# Vẽ đường cho từng thuật toán
-plt.plot(df['Input File'], df['PySAT'], marker='o', markersize=8, linewidth=2, label='PySAT', color='#1f77b4')
-plt.plot(df['Input File'], df['A*'], marker='s', markersize=8, linewidth=2, label='A* (Error = đứt đoạn)', color='#ff7f0e')
-plt.plot(df['Input File'], df['Backtracking'], marker='^', markersize=8, linewidth=2, label='Backtracking', color='#2ca02c')
-plt.plot(df['Input File'], df['Brute-force'], marker='x', markersize=8, linewidth=2, label='Brute-force', color='#d62728')
+def parse_table(raw: str):
+    rows = []
+    for line in raw.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        if line.startswith('File') or line.startswith('-') or line.startswith('---'):
+            continue
+        parts = [p.strip() for p in line.split('|')]
+        if len(parts) < 5:
+            continue
+        file, algo, time_s, mem_mb, status = parts[0], parts[1], parts[2], parts[3], parts[4]
+        # Parse time
+        time_val = None
+        t = time_s.strip()
+        if t == '' or 'timeout' in t.lower() or 'timeout' in status.lower():
+            time_val = np.nan
+        else:
+            try:
+                time_val = float(t)
+            except Exception:
+                time_val = np.nan
 
-# 3. Thêm đường kẻ ngang đánh dấu ngưỡng Timeout
-plt.axhline(y=10, color='red', linestyle='--', alpha=0.6)
-plt.text(0, 10.2, 'Ngưỡng Timeout (Giả lập 10s)', color='red', fontweight='bold')
+        # Parse memory
+        mem_val = None
+        m = mem_mb.strip()
+        if m == '' or m.upper() == 'N/A':
+            mem_val = np.nan
+        else:
+            try:
+                mem_val = float(m)
+            except Exception:
+                mem_val = np.nan
 
-# 4. Trang trí biểu đồ
-plt.title('So sánh thời gian thực thi của các thuật toán Hashiwokakero', fontsize=15, pad=20)
-plt.xlabel('Tệp đầu vào (Input Files)', fontsize=12)
-plt.ylabel('Thời gian chạy (Giây)', fontsize=12)
-plt.xticks(rotation=45)
-plt.grid(True, linestyle=':', alpha=0.7)
-plt.legend(loc='upper left', bbox_to_anchor=(1, 1))
+        rows.append({'File': file, 'Algo': algo, 'Time': time_val, 'Mem': mem_val, 'Status': status})
 
-# Tối ưu không gian hiển thị
-plt.tight_layout()
+    return pd.DataFrame(rows)
 
-# 5. Hiển thị hoặc Lưu file
-plt.show()
-# Nếu muốn lưu ảnh vào báo cáo, hãy bỏ dấu # ở dòng dưới:
-# plt.savefig('bieu_do_so_sanh_thuat_toan.png', dpi=300)
+
+def natural_sort_files(files):
+    def keyfn(name):
+        import re
+        m = re.search(r"(\d+)", name)
+        return int(m.group(1)) if m else name
+    return sorted(files, key=keyfn)
+
+
+def plot_results(df_raw: pd.DataFrame, save_path='comparison_plot.png'):
+    files = natural_sort_files(df_raw['File'].unique())
+    algos = sorted(df_raw['Algo'].unique())
+
+    df_time = df_raw.pivot(index='File', columns='Algo', values='Time').reindex(files)
+    df_mem = df_raw.pivot(index='File', columns='Algo', values='Mem').reindex(files)
+
+    colors = {'pysat': '#1f77b4', 'astar': '#ff7f0e', 'backtracking': '#2ca02c', 'bruteforce': '#d62728'}
+    markers = {'pysat': 'o', 'astar': 's', 'backtracking': '^', 'bruteforce': 'x'}
+
+    fig, axes = plt.subplots(1, 2, figsize=(14, 6), sharex=True)
+
+    # TIME PLOT
+    ax_t = axes[0]
+    for algo in algos:
+        y = df_time[algo].values if algo in df_time else np.array([np.nan]*len(files))
+        ax_t.plot(files, y, marker=markers.get(algo, 'o'), linewidth=2, label=algo, color=colors.get(algo))
+
+    # Mark timeouts: where Time is NaN but Status contains 'Timeout'
+    timeout_threshold = 60.0
+    max_time = np.nanmax(df_time.values)
+    if np.isfinite(max_time):
+        tmark_y = max(max_time * 1.05, timeout_threshold * 0.6)
+    else:
+        tmark_y = timeout_threshold
+
+    for f in files:
+        row = df_raw[df_raw['File'] == f]
+        for algo in algos:
+            rec = row[row['Algo'] == algo]
+            if not rec.empty:
+                status = rec['Status'].values[0]
+                if 'timeout' in status.lower():
+                    ax_t.scatter(f, tmark_y, marker='X', color=colors.get(algo), s=80, zorder=5)
+
+    ax_t.axhline(y=timeout_threshold, color='red', linestyle='--', alpha=0.6)
+    ax_t.text(0, timeout_threshold * 1.01, 'Timeout (60s)', color='red', fontweight='bold')
+    ax_t.set_title('Thời gian chạy (giây)')
+    ax_t.set_xlabel('Input files')
+    ax_t.set_ylabel('Time (s)')
+    ax_t.set_xticklabels(files, rotation=45)
+    ax_t.grid(True, linestyle=':', alpha=0.6)
+    ax_t.legend(loc='upper left', bbox_to_anchor=(1, 1))
+
+    # MEMORY PLOT
+    ax_m = axes[1]
+    for algo in algos:
+        y = df_mem[algo].values if algo in df_mem else np.array([np.nan]*len(files))
+        ax_m.plot(files, y, marker=markers.get(algo, 'o'), linewidth=2, label=algo, color=colors.get(algo))
+
+    ax_m.set_title('Bộ nhớ đỉnh (MB)')
+    ax_m.set_xlabel('Input files')
+    ax_m.set_ylabel('Memory (MB)')
+    ax_m.set_xticklabels(files, rotation=45)
+    ax_m.grid(True, linestyle=':', alpha=0.6)
+    ax_m.legend(loc='upper left', bbox_to_anchor=(1, 1))
+
+    plt.tight_layout()
+    plt.savefig(save_path, dpi=200, bbox_inches='tight')
+    print(f"Saved plot to {save_path}")
+    plt.show()
+
+
+if __name__ == '__main__':
+    df = parse_table(raw_table)
+    plot_results(df)

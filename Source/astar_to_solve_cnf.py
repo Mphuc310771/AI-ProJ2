@@ -2,13 +2,11 @@ import heapq
 import time
 import tracemalloc
 from collections import Counter
-
 from cnf_generator import HashiCNF
 from hashiwokakero import PuzzleState
 
 
 def kiem_tra_clause(clause, gan):
-    # kiem tra clause co thoa man voi gan hien tai ko
     for lit in clause:
         v = abs(lit)
         if v in gan:
@@ -19,7 +17,6 @@ def kiem_tra_clause(clause, gan):
 
 
 def dem_chua_thoa(ds_clause, gan):
-    # dem so clause chua thoa man
     dem = 0
     for cl in ds_clause:
         if not kiem_tra_clause(cl, gan):
@@ -28,7 +25,6 @@ def dem_chua_thoa(ds_clause, gan):
 
 
 def lan_truyen_don_vi(ds_clause, gan):
-    # unit propagation
     gan_moi = gan.copy()
     co_thay_doi = True
     
@@ -39,17 +35,14 @@ def lan_truyen_don_vi(ds_clause, gan):
             if kiem_tra_clause(clause, gan_moi):
                 continue
             
-            # tim cac bien chua gan
             chua_gan = []
             for lit in clause:
                 if abs(lit) not in gan_moi:
                     chua_gan.append(lit)
-            
-            # clause rong ma chua thoa -> xung dot
+
             if not chua_gan:
                 return None, True
-            
-            # unit clause -> gan gia tri de thoa man
+
             if len(chua_gan) == 1:
                 lit = chua_gan[0]
                 bien = abs(lit)
@@ -66,7 +59,6 @@ def lan_truyen_don_vi(ds_clause, gan):
 
 
 def tao_state_tu_gan(hc, gan, puzzle):
-    # chuyen phep gan sang PuzzleState
     state = PuzzleState()
     
     for b in hc.bridges:
@@ -89,16 +81,13 @@ def tao_state_tu_gan(hc, gan, puzzle):
     return state
 
 
-def solve_astar(puzzle, gioi_han_tg=300, gioi_han_node=2000000):
-    # giai bang A*
+def solve_astar(puzzle, gioi_han_tg=60, gioi_han_node=2000000):
     hc = HashiCNF(puzzle.grid)
     hc.generate_cnf()
     ds_clause, so_bien = hc.get_clause_list()
 
     tracemalloc.start()
     t0 = time.perf_counter()
-
-    # bat dau voi phep gan rong, chay unit propagation
     gan_dau, xung_dot = lan_truyen_don_vi(ds_clause, {})
     if xung_dot:
         return None, time.perf_counter() - t0, {'status': 'unsat'}
@@ -118,7 +107,6 @@ def solve_astar(puzzle, gioi_han_tg=300, gioi_han_node=2000000):
     max_heap = 1
 
     while heap:
-        # kiem tra gioi han thoi gian
         if (time.perf_counter() - t0) > gioi_han_tg:
             break
 
@@ -130,7 +118,6 @@ def solve_astar(puzzle, gioi_han_tg=300, gioi_han_node=2000000):
         if so_node > gioi_han_node:
             break
 
-        # kiem tra da thoa man het clause chua
         if h == 0 and dem_chua_thoa(ds_clause, gan_ht) == 0:
             cur_mem, peak_mem = tracemalloc.get_traced_memory()
             tracemalloc.stop()
@@ -147,8 +134,6 @@ def solve_astar(puzzle, gioi_han_tg=300, gioi_han_node=2000000):
             state = tao_state_tu_gan(hc, gan_ht, puzzle)
             return state, tg_chay, thong_ke
 
-        # tim bien tot nhat de thu
-        # chon tu clause ngan nhat chua thoa man
         do_dai_min = float('inf')
         ds_bien_tot = Counter()
         
@@ -175,10 +160,8 @@ def solve_astar(puzzle, gioi_han_tg=300, gioi_han_node=2000000):
         if not co_chua_thoa or not ds_bien_tot:
             continue
 
-        # chon bien xuat hien nhieu nhat
         bien_tiep = ds_bien_tot.most_common(1)[0][0]
 
-        # thu ca 2 gia tri True va False
         for gia_tri in [True, False]:
             gan_moi = gan_ht.copy()
             gan_moi[bien_tiep] = gia_tri
