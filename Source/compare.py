@@ -143,5 +143,10 @@ def run_comparison():
             row += f" | {cell:<12}"
         print(row)
 
+    import json
+    with open("results.json", "w", encoding="utf-8") as f:
+        json.dump(results, f, indent=4)
+    print("\n[Thông báo] Đã lưu kết quả vào file results.json")
+
 if __name__ == "__main__":
     run_comparison()

@@ -1,0 +1,182 @@
+{
+    "input-01.txt": {
+        "pysat": {
+            "time": "0.8599",
+            "mem": "102.48"
+        },
+        "astar": {
+            "time": "0.9901",
+            "mem": "102.82"
+        },
+        "backtracking": {
+            "time": "4.0944",
+            "mem": "102.52"
+        },
+        "bruteforce": {
+            "time": "4.0229",
+            "mem": "102.04"
+        }
+    },
+    "input-02.txt": {
+        "pysat": {
+            "time": "1.2013",
+            "mem": "102.13"
+        },
+        "astar": {
+            "time": "1.2870",
+            "mem": "102.26"
+        },
+        "backtracking": {
+            "time": "Timeout",
+            "mem": "N/A"
+        },
+        "bruteforce": {
+            "time": "Timeout",
+            "mem": "N/A"
+        }
+    },
+    "input-03.txt": {
+        "pysat": {
+            "time": "1.2899",
+            "mem": "102.59"
+        },
+        "astar": {
+            "time": "1.2782",
+            "mem": "102.14"
+        },
+        "backtracking": {
+            "time": "3.3957",
+            "mem": "102.22"
+        },
+        "bruteforce": {
+            "time": "4.1316",
+            "mem": "102.19"
+        }
+    },
+    "input-04.txt": {
+        "pysat": {
+            "time": "1.2430",
+            "mem": "102.40"
+        },
+        "astar": {
+            "time": "1.5287",
+            "mem": "104.48"
+        },
+        "backtracking": {
+            "time": "Timeout",
+            "mem": "N/A"
+        },
+        "bruteforce": {
+            "time": "Timeout",
+            "mem": "N/A"
+        }
+    },
+    "input-05.txt": {
+        "pysat": {
+            "time": "1.3073",
+            "mem": "106.59"
+        },
+        "astar": {
+            "time": "Timeout",
+            "mem": "N/A"
+        },
+        "backtracking": {
+            "time": "Timeout",
+            "mem": "N/A"
+        },
+        "bruteforce": {
+            "time": "Timeout",
+            "mem": "N/A"
+        }
+    },
+    "input-06.txt": {
+        "pysat": {
+            "time": "1.2250",
+            "mem": "102.30"
+        },
+        "astar": {
+            "time": "1.2477",
+            "mem": "102.31"
+        },
+        "backtracking": {
+            "time": "Timeout",
+            "mem": "N/A"
+        },
+        "bruteforce": {
+            "time": "Timeout",
+            "mem": "N/A"
+        }
+    },
+    "input-07.txt": {
+        "pysat": {
+            "time": "1.2380",
+            "mem": "102.80"
+        },
+        "astar": {
+            "time": "2.1335",
+            "mem": "109.81"
+        },
+        "backtracking": {
+            "time": "Timeout",
+            "mem": "N/A"
+        },
+        "bruteforce": {
+            "time": "Timeout",
+            "mem": "N/A"
+        }
+    },
+    "input-08.txt": {
+        "pysat": {
+            "time": "1.2372",
+            "mem": "103.18"
+        },
+        "astar": {
+            "time": "5.1494",
+            "mem": "128.61"
+        },
+        "backtracking": {
+            "time": "Timeout",
+            "mem": "N/A"
+        },
+        "bruteforce": {
+            "time": "Timeout",
+            "mem": "N/A"
+        }
+    },
+    "input-09.txt": {
+        "pysat": {
+            "time": "1.3194",
+            "mem": "103.58"
+        },
+        "astar": {
+            "time": "24.6344",
+            "mem": "318.79"
+        },
+        "backtracking": {
+            "time": "Timeout",
+            "mem": "N/A"
+        },
+        "bruteforce": {
+            "time": "Timeout",
+            "mem": "N/A"
+        }
+    },
+    "input-10.txt": {
+        "pysat": {
+            "time": "0.7634",
+            "mem": "104.56"
+        },
+        "astar": {
+            "time": "Timeout",
+            "mem": "N/A"
+        },
+        "backtracking": {
+            "time": "Timeout",
+            "mem": "N/A"
+        },
+        "bruteforce": {
+            "time": "Timeout",
+            "mem": "N/A"
+        }
+    }
+}
