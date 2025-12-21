@@ -105,7 +105,6 @@ class SATSolver:
         kq["time"] = self.tg_chay
         return kq
 
-
 def solve_sat(puzzle):
     solver = SATSolver(puzzle)
     kq = solver.solve()

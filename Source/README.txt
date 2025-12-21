@@ -55,10 +55,13 @@ d) Chay benchmark (test tat ca file input):
 e) Chay so sanh pysat, A*, backtracking, bruteforce:
     python compare.py
 
-f) Ve bieu do so sanh pysat, A*, backtracking, bruteforce:
+f) Ve bieu do so sanh thoi gian giua pysat, A*, backtracking, bruteforce:
     python chart.py
 
-g) Xem huong dan:
+g) Ve bieu do so sanh bo nho giua pysat, A*, backtracking, bruteforce:
+    python chart_memory.py
+
+h) Xem huong dan:
     python main.py --help
 
 
@@ -119,7 +122,7 @@ b) astar: thuat toan A* voi heuristic tinh so cau con thieu.
    Kha nhanh, dam bao tim loi giai neu co.
 
 c) backtracking: quay lui co cat tia.
-   Trung binh, phu hop puzzle vua.
+   Cham, phu hop puzzle vua.
 
 d) bruteforce: vet can tat ca to hop.
    Cham nhat, chi dung cho puzzle nho (duoi 15 cau).
