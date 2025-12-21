@@ -106,9 +106,12 @@ def solve_astar(puzzle, gioi_han_tg=300, gioi_han_node=2000000):
     g0 = len(gan_dau)
     h0 = dem_chua_thoa(ds_clause, gan_dau)
     
-    # heap: (f, h, g, gan)
+    # === FIX START ===
+    unique_id = 0  # Tao bien dem de tranh so sanh dict
+    # heap: (f, h, g, unique_id, gan) -> Them unique_id vao truoc gan
     heap = []
-    heapq.heappush(heap, (g0 + h0, h0, g0, gan_dau))
+    heapq.heappush(heap, (g0 + h0, h0, g0, unique_id, gan_dau))
+    # === FIX END ===
     
     da_xet = set()
     key_dau = tuple(sorted(gan_dau.items()))
@@ -122,7 +125,11 @@ def solve_astar(puzzle, gioi_han_tg=300, gioi_han_node=2000000):
         if (time.perf_counter() - t0) > gioi_han_tg:
             break
 
-        f, h, g, gan_ht = heapq.heappop(heap)
+        # === FIX START ===
+        # Pop them bien _ (unique_id) ra nhung khong dung den
+        f, h, g, _, gan_ht = heapq.heappop(heap)
+        # === FIX END ===
+
         max_heap = max(max_heap, len(heap))
         
         so_node += 1
@@ -196,7 +203,10 @@ def solve_astar(puzzle, gioi_han_tg=300, gioi_han_node=2000000):
             g_moi = len(gan_sau)
             h_moi = dem_chua_thoa(ds_clause, gan_sau)
             
-            heapq.heappush(heap, (g_moi + h_moi, h_moi, g_moi, gan_sau))
+            # === FIX START ===
+            unique_id += 1 # Tang ID len de dam bao duy nhat
+            heapq.heappush(heap, (g_moi + h_moi, h_moi, g_moi, unique_id, gan_sau))
+            # === FIX END ===
 
     tracemalloc.stop()
     return None, time.perf_counter() - t0, {
