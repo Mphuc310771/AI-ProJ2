@@ -121,11 +121,13 @@ def chay_benchmark(folder_in='Inputs', folder_out='Outputs'):
             print("Kich thuoc: %dx%d, %d dao" % (puzzle.rows, puzzle.cols, so_dao))
             print()
             
-            # Xac dinh cac thuat toan se chay
-            test_algos = {'PySAT': solve_sat, 'A*': solve_astar, 'Backtracking': solve_backtracking}
-            so_cau = len(puzzle.get_possible_bridges())
-            if so_cau <= 12:
-                test_algos['Brute-force'] = solve_bruteforce
+            # Chay day du 4 thuat toan
+            test_algos = {
+                'PySAT': solve_sat, 
+                'A*': solve_astar, 
+                'Backtracking': solve_backtracking,
+                'Brute-force': solve_bruteforce
+            }
             
             kq = compare_algorithms(puzzle, test_algos)
             tat_ca_ket_qua[fname] = kq
