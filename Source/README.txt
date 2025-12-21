@@ -53,7 +53,7 @@ Source/
   |- hashiwokakero.py      # dinh nghia puzzle, dao, cau
   |- cnf_generator.py      # sinh menh de CNF cho SAT solver
   |- sat_solver.py         # giai bang PySAT
-  |- astar_solver.py       # giai bang thuat toan A*
+  |- astar_to_solve_cnf.py # giai bang thuat toan A*
   |- brute_force_solver.py # giai bang vet can
   |- backtracking_solver.py # giai bang quay lui
   |- utils.py              # cac ham tien ich
