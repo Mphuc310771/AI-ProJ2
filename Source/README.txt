@@ -31,7 +31,7 @@ Neu bi loi permission thi dung:
     pip install --user -r requirements.txt
 
 Neu van bi loi thi thu:
-    python -m pip install python-sat psutil
+    python -m pip install python-sat psutil matplotlib pandas
 
 
 3. CACH CHAY CHUONG TRINH
@@ -76,7 +76,8 @@ Source/
   |- brute_force_solver.py # giai bang vet can
   |- backtracking_solver.py # giai bang quay lui
   |- compare.py            # so sanh thuat toan
-  |- chart.py              # ve bieu do
+  |- chart_time.py              # ve bieu do so sanh thoi gian
+  |- chart_memory.py              # ve bieu do so sanh bo nho
   |- utils.py              # cac ham tien ich
   |- requirements.txt      # thu vien can cai
   |- Inputs/               # cac file input mau
