@@ -5,14 +5,19 @@ import time
 
 class BruteForceSolver:
     
-    def __init__(self, puzzle):
+    def __init__(self, puzzle, timeout_seconds=None):
         self.puzzle = puzzle
         self.tg_chay = 0
         self.so_lan_thu = 0
+        self._start_time = None
+        self._timeout_seconds = timeout_seconds
+        self.timed_out = False
     
     def solve(self):
         t1 = time.time()
         self.so_lan_thu = 0
+        self._start_time = t1
+        self.timed_out = False
         
         ds_cau = self.puzzle.get_possible_bridges()
         n = len(ds_cau)
@@ -25,6 +30,13 @@ class BruteForceSolver:
         # duyet het tat ca to hop (0, 1, 2) cho moi cap dao
         for to_hop in product([0, 1, 2], repeat=n):
             self.so_lan_thu += 1
+
+            # Kiểm tra timeout mỗi vòng lặp
+            if self._timeout_seconds is not None and self._start_time is not None:
+                if time.time() - self._start_time > self._timeout_seconds:
+                    self.tg_chay = time.time() - t1
+                    self.timed_out = True
+                    return None
             
             # tao state tu to hop
             state = PuzzleState()
@@ -54,11 +66,13 @@ class BruteForceSolver:
             "da_thu": self.so_lan_thu,
             "tong": 3 ** n,
             "so_cap": n,
-            "algorithm": "Brute-force"
+            "algorithm": "Brute-force",
+            "timed_out": getattr(self, 'timed_out', False),
+            "timeout_seconds": self._timeout_seconds
         }
 
 
-def solve_bruteforce(puzzle):
-    solver = BruteForceSolver(puzzle)
+def solve_bruteforce(puzzle, timeout_seconds=60):
+    solver = BruteForceSolver(puzzle, timeout_seconds=timeout_seconds)
     kq = solver.solve()
     return kq, solver.tg_chay, solver.get_stats()

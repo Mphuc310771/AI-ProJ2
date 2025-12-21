@@ -4,18 +4,23 @@ import time
 
 class BacktrackingSolver:
     
-    def __init__(self, puzzle):
+    def __init__(self, puzzle, timeout_seconds=None):
         self.puzzle = puzzle
         self.tg_chay = 0
         self.dem_node = 0
         self.dem_quay_lui = 0
         self.loi_giai = None
+        self._start_time = None
+        self._timeout_seconds = timeout_seconds
+        self.timed_out = False
     
     def solve(self):
         t1 = time.time()
         self.dem_node = 0
         self.dem_quay_lui = 0
         self.loi_giai = None
+        self._start_time = t1
+        self.timed_out = False
         
         # lay danh sach cac cap dao co the noi
         ds_cau = self.puzzle.get_possible_bridges()
@@ -48,6 +53,12 @@ class BacktrackingSolver:
             return True
         
         self.dem_node += 1
+        # Kiểm tra timeout
+        if self._timeout_seconds is not None and self._start_time is not None:
+            if time.time() - self._start_time > self._timeout_seconds:
+                self.timed_out = True
+                self.dem_quay_lui += 1
+                return False
         
         # cat tia som neu khong kha thi
         if not self._kha_thi(state):
@@ -136,11 +147,13 @@ class BacktrackingSolver:
             "time": self.tg_chay,
             "nodes": self.dem_node,
             "backtracks": self.dem_quay_lui,
-            "algorithm": "Backtracking"
+            "algorithm": "Backtracking",
+            "timed_out": getattr(self, 'timed_out', False),
+            "timeout_seconds": self._timeout_seconds
         }
 
 
-def solve_backtracking(puzzle):
-    solver = BacktrackingSolver(puzzle)
+def solve_backtracking(puzzle, timeout_seconds=60):
+    solver = BacktrackingSolver(puzzle, timeout_seconds=timeout_seconds)
     kq = solver.solve()
     return kq, solver.tg_chay, solver.get_stats()
