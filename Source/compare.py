@@ -35,9 +35,10 @@ def run_comparison():
             continue
 
         for algo in algorithms:
-            # Đối với Brute-force, nếu input quá lớn có thể bỏ qua để tránh treo máy
-            # Bạn có thể điều chỉnh logic này tùy theo sức mạnh máy tính
-            out_file = os.path.join(output_folder, f"output-{algo}-{i:02d}.txt")
+            # Luu vao subfolder theo thuat toan
+            algo_folder = os.path.join(output_folder, algo)
+            os.makedirs(algo_folder, exist_ok=True)
+            out_file = os.path.join(algo_folder, f"output-{i:02d}.txt")
             
             cmd = [
                 "python", "main.py",
