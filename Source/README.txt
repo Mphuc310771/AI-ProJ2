@@ -56,7 +56,7 @@ e) Chay so sanh pysat, A*, backtracking, bruteforce:
     python compare.py
 
 f) Ve bieu do so sanh thoi gian giua pysat, A*, backtracking, bruteforce:
-    python chart.py
+    python chart_time.py
 
 g) Ve bieu do so sanh bo nho giua pysat, A*, backtracking, bruteforce:
     python chart_memory.py
