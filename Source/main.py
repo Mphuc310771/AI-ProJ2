@@ -23,7 +23,7 @@ def get_solver(ten):
     return CAC_SOLVER.get(ten.lower())
 
 
-def giai_puzzle(file_input, algo='pysat', file_output=None, in_ra=True):
+def giai_puzzle(file_input, algo='pysat', file_output=None, in_ra=True, folder_out='Outputs'):
     if in_ra:
         print("Dang doc:", file_input)
     
@@ -57,11 +57,18 @@ def giai_puzzle(file_input, algo='pysat', file_output=None, in_ra=True):
     output = puzzle.state_to_output(loi_giai)
     print_output(output)
     
-    if file_output != None:
-        save_output(output, file_output)
-        if in_ra:
-            print()
-            print("Da luu:", file_output)
+    # Tu dong luu vao subfolder theo thuat toan neu khong chi dinh file output
+    if file_output == None:
+        fname = os.path.basename(file_input)
+        out_name = fname.replace('input-', 'output-')
+        algo_folder = os.path.join(folder_out, algo.lower())
+        os.makedirs(algo_folder, exist_ok=True)
+        file_output = os.path.join(algo_folder, out_name)
+    
+    save_output(output, file_output)
+    if in_ra:
+        print()
+        print("Da luu:", file_output)
     
     if in_ra:
         print()
@@ -87,11 +94,18 @@ def chay_benchmark(folder_in='Inputs', folder_out='Outputs'):
     print("Tim thay %d file" % len(cac_file))
     print()
     
-    algos = {
-        'PySAT': solve_sat,
-        'A*': solve_astar,
-        'Backtracking': solve_backtracking,
+    # Map ten hien thi sang ten folder
+    algo_map = {
+        'PySAT': ('pysat', solve_sat),
+        'A*': ('astar', solve_astar),
+        'Backtracking': ('backtracking', solve_backtracking),
+        'Brute-force': ('bruteforce', solve_bruteforce),
     }
+    
+    # Tao cac subfolder
+    for _, (folder_name, _) in algo_map.items():
+        algo_folder = os.path.join(folder_out, folder_name)
+        os.makedirs(algo_folder, exist_ok=True)
     
     tat_ca_ket_qua = {}
     
@@ -107,7 +121,8 @@ def chay_benchmark(folder_in='Inputs', folder_out='Outputs'):
             print("Kich thuoc: %dx%d, %d dao" % (puzzle.rows, puzzle.cols, so_dao))
             print()
             
-            test_algos = algos.copy()
+            # Xac dinh cac thuat toan se chay
+            test_algos = {'PySAT': solve_sat, 'A*': solve_astar, 'Backtracking': solve_backtracking}
             so_cau = len(puzzle.get_possible_bridges())
             if so_cau <= 12:
                 test_algos['Brute-force'] = solve_bruteforce
@@ -115,16 +130,17 @@ def chay_benchmark(folder_in='Inputs', folder_out='Outputs'):
             kq = compare_algorithms(puzzle, test_algos)
             tat_ca_ket_qua[fname] = kq
             
-            for alg in kq:
-                if kq[alg].get('success'):
-                    fn = test_algos[alg]
-                    sol, _, _ = fn(puzzle)
+            # Luu output cho TUNG thuat toan vao subfolder rieng
+            out_name = fname.replace('input-', 'output-')
+            for alg_name in kq:
+                if kq[alg_name].get('success'):
+                    folder_name, solver_fn = algo_map[alg_name]
+                    sol, _, _ = solver_fn(puzzle)
                     if sol != None:
                         out = puzzle.state_to_output(sol)
-                        out_name = fname.replace('input-', 'output-')
-                        out_path = os.path.join(folder_out, out_name)
+                        out_path = os.path.join(folder_out, folder_name, out_name)
                         save_output(out, out_path)
-                    break
+                        print("  Luu: %s/%s" % (folder_name, out_name))
         
         except Exception as loi:
             print("Loi:", loi)
