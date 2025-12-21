@@ -8,7 +8,7 @@ from hashiwokakero import PuzzleState
 
 
 def kiem_tra_clause(clause, gan):
-    """Kiem tra 1 clause co thoa man voi phep gan hien tai khong"""
+    # kiem tra clause co thoa man voi gan hien tai ko
     for lit in clause:
         v = abs(lit)
         if v in gan:
@@ -19,7 +19,7 @@ def kiem_tra_clause(clause, gan):
 
 
 def dem_chua_thoa(ds_clause, gan):
-    """Dem so clause chua duoc thoa man"""
+    # dem so clause chua thoa man
     dem = 0
     for cl in ds_clause:
         if not kiem_tra_clause(cl, gan):
@@ -28,7 +28,7 @@ def dem_chua_thoa(ds_clause, gan):
 
 
 def lan_truyen_don_vi(ds_clause, gan):
-    """Unit propagation - suy dien tu cac clause chi co 1 bien"""
+    # unit propagation
     gan_moi = gan.copy()
     co_thay_doi = True
     
@@ -66,7 +66,7 @@ def lan_truyen_don_vi(ds_clause, gan):
 
 
 def tao_state_tu_gan(hc, gan, puzzle):
-    """Chuyen phep gan CNF sang PuzzleState"""
+    # chuyen phep gan sang PuzzleState
     state = PuzzleState()
     
     for b in hc.bridges:
@@ -90,7 +90,7 @@ def tao_state_tu_gan(hc, gan, puzzle):
 
 
 def solve_astar(puzzle, gioi_han_tg=300, gioi_han_node=2000000):
-    """Giai CNF bang A* search"""
+    # giai bang A*
     hc = HashiCNF(puzzle.grid)
     hc.generate_cnf()
     ds_clause, so_bien = hc.get_clause_list()
@@ -106,12 +106,9 @@ def solve_astar(puzzle, gioi_han_tg=300, gioi_han_node=2000000):
     g0 = len(gan_dau)
     h0 = dem_chua_thoa(ds_clause, gan_dau)
     
-    # === FIX START ===
-    unique_id = 0  # Tao bien dem de tranh so sanh dict
-    # heap: (f, h, g, unique_id, gan) -> Them unique_id vao truoc gan
+    unique_id = 0
     heap = []
     heapq.heappush(heap, (g0 + h0, h0, g0, unique_id, gan_dau))
-    # === FIX END ===
     
     da_xet = set()
     key_dau = tuple(sorted(gan_dau.items()))
@@ -125,10 +122,7 @@ def solve_astar(puzzle, gioi_han_tg=300, gioi_han_node=2000000):
         if (time.perf_counter() - t0) > gioi_han_tg:
             break
 
-        # === FIX START ===
-        # Pop them bien _ (unique_id) ra nhung khong dung den
         f, h, g, _, gan_ht = heapq.heappop(heap)
-        # === FIX END ===
 
         max_heap = max(max_heap, len(heap))
         
@@ -203,10 +197,8 @@ def solve_astar(puzzle, gioi_han_tg=300, gioi_han_node=2000000):
             g_moi = len(gan_sau)
             h_moi = dem_chua_thoa(ds_clause, gan_sau)
             
-            # === FIX START ===
-            unique_id += 1 # Tang ID len de dam bao duy nhat
+            unique_id += 1
             heapq.heappush(heap, (g_moi + h_moi, h_moi, g_moi, unique_id, gan_sau))
-            # === FIX END ===
 
     tracemalloc.stop()
     return None, time.perf_counter() - t0, {

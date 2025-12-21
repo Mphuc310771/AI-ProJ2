@@ -43,7 +43,7 @@ def print_output(grid):
 
 
 def do_bo_nho(ham, *args, **kwargs):
-    """Do bo nho su dung cua ham"""
+    # do bo nho
     tracemalloc.start()
     kq = ham(*args, **kwargs)
     hien_tai, dinh = tracemalloc.get_traced_memory()
@@ -52,7 +52,7 @@ def do_bo_nho(ham, *args, **kwargs):
 
 
 def compare_algorithms(puzzle, ds_algo, timeout=60.0):
-    """So sanh cac thuat toan tren cung 1 puzzle"""
+    # so sanh cac thuat toan
     ket_qua = {}
     
     for ten_algo in ds_algo:
@@ -99,7 +99,7 @@ def compare_algorithms(puzzle, ds_algo, timeout=60.0):
 
 
 def make_table(tat_ca_kq):
-    """Tao bang so sanh dang markdown"""
+    # tao bang markdown
     if len(tat_ca_kq) == 0:
         return ""
     
@@ -138,7 +138,7 @@ def make_table(tat_ca_kq):
 
 
 def check_input_file(duong_dan):
-    """Kiem tra file input co hop le khong"""
+    # kiem tra file input
     try:
         with open(duong_dan, 'r') as f:
             ds_dong = f.readlines()
@@ -169,7 +169,7 @@ def check_input_file(duong_dan):
 
 
 def get_input_files(folder):
-    """Lay danh sach cac file input trong folder"""
+    # lay ds file input
     ds = []
     for ten in os.listdir(folder):
         if ten.startswith('input-') and ten.endswith('.txt'):

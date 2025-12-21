@@ -3,7 +3,7 @@ from pysat.card import CardEnc
 
 
 class HashiCNF:
-    """Sinh cong thuc CNF cho bai toan Hashi"""
+    # sinh CNF cho Hashi
     
     def __init__(self, grid):
         self.grid = grid
