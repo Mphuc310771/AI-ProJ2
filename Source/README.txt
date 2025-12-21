@@ -11,6 +11,16 @@
 
 2. CAI DAT
 ----------
+Buoc 0: Tao va kich hoat moi truong ao (KHUYEN NGHI)
+Su dung moi truong ao giup tranh xung dot thu vien va de dang chay tren nhieu may khac nhau.
+Tren Windows:
+    python -m venv venv
+    venv\Scripts\activate
+
+Tren Linux / macOS:
+    python3 -m venv venv
+    source venv/bin/activate
+
 Buoc 1: Mo terminal/cmd, di chuyen vao thu muc Source
     cd duong/dan/toi/Source
 
@@ -42,7 +52,13 @@ c) Luu ket qua ra file:
 d) Chay benchmark (test tat ca file input):
     python main.py --benchmark
 
-e) Xem huong dan:
+e) Chay so sanh pysat, A*, backtracking, bruteforce
+    python compare.py
+
+f) Ve bieu do so sanh pysat, A*, backtracking, bruteforce
+    python chart.py
+
+g) Xem huong dan:
     python main.py --help
 
 
